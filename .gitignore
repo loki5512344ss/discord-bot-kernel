@@ -1,0 +1,13 @@
+.gradle/
+build/
+bin/
+data/
+logs/
+.env
+*.log
+*.db
+.DS_Store
+.gradle/
+.idea/
+*.iml
+out/
