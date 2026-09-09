@@ -39,14 +39,13 @@ pub async fn on_voice_state_update(ctx: Context, old: Option<VoiceState>, new: V
     if let Some(old_state) = old {
         if let Some(old_channel) = old_state.channel_id {
             if old_channel != HUB && old_channel.get() != 1509503696566882324 {
-                // check if channel empty
-                if let Ok(channel) = old_channel.to_channel(&ctx.http).await {
-                    if let serenity::all::Channel::Guild(g) = channel {
-                        if let Ok(members) = g.members(&ctx.cache) {
-                            if members.is_empty() {
-                                let _ = g.delete(&ctx.http).await;
-                                info!(channel = %old_channel, "temp voice deleted (empty)");
-                            }
+                if let Ok(serenity::all::Channel::Guild(g)) =
+                    old_channel.to_channel(&ctx.http).await
+                {
+                    if let Ok(members) = g.members(&ctx.cache) {
+                        if members.is_empty() {
+                            let _ = g.delete(&ctx.http).await;
+                            info!(channel = %old_channel, "temp voice deleted (empty)");
                         }
                     }
                 }

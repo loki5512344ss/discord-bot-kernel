@@ -57,6 +57,10 @@ impl EventHandler for Handler {
             }
         }
     }
+
+    async fn message(&self, ctx: Context, new_message: serenity::all::Message) {
+        crate::feature::blog::handler::on_message(ctx, new_message).await;
+    }
 }
 
 async fn handle_component(ctx: Context, interaction: ComponentInteraction) {

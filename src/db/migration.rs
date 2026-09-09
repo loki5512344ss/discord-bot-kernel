@@ -12,7 +12,7 @@ pub async fn run(pool: &SqlitePool) -> anyhow::Result<()> {
     .execute(pool)
     .await?;
 
-    let migrations = [("V1__initial", V1_INITIAL)];
+    let migrations = [("V1__initial", V1_INITIAL), ("V2__tickets", V2_TICKETS)];
     for (name, sql) in migrations {
         let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM _migrations WHERE name = ?")
             .bind(name)
@@ -45,5 +45,23 @@ CREATE TABLE IF NOT EXISTS user_stats (
     xp INTEGER NOT NULL DEFAULT 0,
     level INTEGER NOT NULL DEFAULT 0,
     message_count INTEGER NOT NULL DEFAULT 0
+);
+";
+const V2_TICKETS: &str = "
+CREATE TABLE IF NOT EXISTS ticket_blacklist (
+    guild_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    PRIMARY KEY (guild_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS ticket_claims (
+    channel_id TEXT PRIMARY KEY,
+    guild_id TEXT NOT NULL,
+    claimed_by TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS tickets (
+    channel_id TEXT PRIMARY KEY,
+    guild_id TEXT NOT NULL,
+    opener_id TEXT NOT NULL
 );
 ";
