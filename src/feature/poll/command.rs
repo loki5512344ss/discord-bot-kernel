@@ -7,7 +7,7 @@ use serenity::all::{CreateEmbed, CreateEmbedFooter, ReactionType};
 const NUMBER_EMOJIS: [&str; 10] = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
 
 /// `/poll <question> <options>` - options separated by `;` (2-10). Adds number reactions.
-#[poise::command(slash_command, prefix_command, guild_only)]
+#[poise::command(slash_command, guild_only)]
 pub async fn poll(
     ctx: Ctx<'_>,
     #[description = "Poll question"] question: String,

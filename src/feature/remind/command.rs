@@ -19,7 +19,7 @@ fn parse_duration(input: &str) -> Option<u64> {
 }
 
 /// `/remind <duration> <message>` - e.g. `/remind 10m stretch break`. Max 7 days.
-#[poise::command(slash_command, prefix_command, guild_only)]
+#[poise::command(slash_command, guild_only)]
 pub async fn remind(
     ctx: Ctx<'_>,
     #[description = "Duration, e.g. 30s, 10m, 2h, 1d"] duration: String,
