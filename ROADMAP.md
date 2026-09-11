@@ -43,15 +43,15 @@ cargo run --bin ds-setup -- bootstrap --guild-id 123 --dry-run
 ## Phase 3 - Блог-фичи (главное отличие от старого бота)
 - [ ] RSS/Telegram → #blog-feed (webhook, `reqwest` + `feed-rs`)
 - [ ] `!post` - анонс поста (embed с cover, линк)
-- [ ] Showcase: треды в #showcase, реакции ⭐
-- [ ] GitHub webhook → #changelog
-- [ ] Ticket (кнопки в #open-ticket → приватный канал/тред в SUPPORT, overwrites за 1 операцию, claim, transcript → #ticket-logs) - см. ARCHITECTURE.md
+- [x] GitHub webhook → #changelog (нативная интеграция Discord, без кода: GitHub webhook URL = `<discord-webhook-url>/github`)
+- [x] Ticket (кнопки в #open-ticket → приватный канал/тред в SUPPORT, overwrites за 1 операцию, claim, blacklist, transcript → hastebin) - `feature/ticket`
 
 ## Phase 4 - Комьюнити
-- [ ] Welcome embed, counters (member count в канале)
-- [ ] Polls в #ideas
-- [ ] Scheduler (напоминания)
-- [ ] Temp voice (`#create-voice` → временный канал)
+- [x] Welcome embed (`feature/welcome`)
+- [x] Counters (member count в voice-канале, `feature/counter`, refresh 10 мин)
+- [x] Polls (`/poll вопрос; вариант1; вариант2`, embed + реакции цифрами, `feature/poll`)
+- [x] Scheduler / напоминания (`/remind 10m текст`, личные, SQLite + фоновый воркер 30с, `feature/remind`)
+- [x] Temp voice (`#create-voice` → временный канал, `feature/voice`)
 
 ## Phase 5 - Опционально (AI)
 - [ ] AI FAQ (DeepSeek/GPT) в #faq - только по базе знаний блога

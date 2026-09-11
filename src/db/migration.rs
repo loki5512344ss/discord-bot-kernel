@@ -12,7 +12,8 @@ pub async fn run(pool: &SqlitePool) -> anyhow::Result<()> {
     .execute(pool)
     .await?;
 
-    let migrations = [("V1__initial", V1_INITIAL), ("V2__tickets", V2_TICKETS)];
+    let migrations =
+        [("V1__initial", V1_INITIAL), ("V2__tickets", V2_TICKETS), ("V3__reminders", V3_REMINDERS)];
     for (name, sql) in migrations {
         let exists: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM _migrations WHERE name = ?")
             .bind(name)
@@ -63,5 +64,15 @@ CREATE TABLE IF NOT EXISTS tickets (
     channel_id TEXT PRIMARY KEY,
     guild_id TEXT NOT NULL,
     opener_id TEXT NOT NULL
+);
+";
+const V3_REMINDERS: &str = "
+CREATE TABLE IF NOT EXISTS reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    message TEXT NOT NULL,
+    due_at TEXT NOT NULL,
+    sent INTEGER NOT NULL DEFAULT 0
 );
 ";

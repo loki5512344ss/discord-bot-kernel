@@ -8,7 +8,10 @@ use serenity::client::{Client, Context, EventHandler};
 use tracing::{info, warn};
 
 /// Handles `Ready` - logs bot user + guild count.
-struct Handler;
+struct Handler {
+    guild_id: Option<u64>,
+    pool: sqlx::SqlitePool,
+}
 
 #[serenity::async_trait]
 impl EventHandler for Handler {
@@ -26,6 +29,10 @@ impl EventHandler for Handler {
                 warn!(error = %e, "ensure_verify_message failed");
             }
         });
+        if let Some(gid) = self.guild_id {
+            crate::feature::counter::task::spawn(ctx.clone(), serenity::all::GuildId::new(gid));
+        }
+        crate::feature::remind::task::spawn(ctx, self.pool.clone());
     }
 
     async fn reaction_add(&self, ctx: Context, reaction: Reaction) {
@@ -95,6 +102,7 @@ async fn handle_component(ctx: Context, interaction: ComponentInteraction) {
 /// Builds Serenity client with intents + poise framework.
 pub async fn build_client(
     cfg: &BotConfig,
+    pool: sqlx::SqlitePool,
     framework: Framework<crate::feature::Data, anyhow::Error>,
 ) -> anyhow::Result<Client> {
     let intents = GatewayIntents::GUILD_MESSAGES
@@ -105,7 +113,7 @@ pub async fn build_client(
         | GatewayIntents::GUILD_VOICE_STATES;
 
     let client = Client::builder(&cfg.token, intents)
-        .event_handler(Handler)
+        .event_handler(Handler { guild_id: cfg.guild_id, pool })
         .framework(framework)
         .activity(ActivityData::custom(cfg.activity.clone()))
         .await?;

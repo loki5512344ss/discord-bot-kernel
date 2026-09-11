@@ -1,9 +1,12 @@
 pub mod admin;
 pub mod blog;
+pub mod counter;
 pub mod help;
 pub mod info;
 pub mod lang;
 pub mod moderation;
+pub mod poll;
+pub mod remind;
 pub mod ticket;
 pub mod verify;
 pub mod voice;
@@ -40,6 +43,8 @@ pub async fn build_framework(
             moderation::command::slowmode(),
             moderation::command::warn(),
             blog::command::blog_post(),
+            poll::command::poll(),
+            remind::command::remind(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some(cfg.prefix.clone().into()),

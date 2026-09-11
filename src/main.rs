@@ -25,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
 
     let framework = feature::build_framework(cfg.clone(), pool.clone()).await?;
 
-    let client = core::bot::build_client(&cfg, framework).await?;
+    let client = core::bot::build_client(&cfg, pool.clone(), framework).await?;
     core::bot::run_with_shutdown(client).await?;
     db::pool::close(pool).await;
     Ok(())

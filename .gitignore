@@ -22,3 +22,4 @@ out/
 tools/userbot/.env
 tools/userbot/node_modules/
 tools/userbot/
+ref/
