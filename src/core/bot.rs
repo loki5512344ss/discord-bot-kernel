@@ -19,6 +19,8 @@ impl EventHandler for Handler {
         info!(user = %ready.user.name, guilds = ready.guilds.len(), "ready");
         // Auto-create verify embed once (no manual !verify_setup needed).
         let http = ctx.http.clone();
+        let http2 = ctx.http.clone();
+        let gid_clone = self.guild_id;
         tokio::spawn(async move {
             // SAFETY: startup delay 2s - not in command path, lets cache fill, no jitter needed (one-shot on boot)
             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
@@ -27,6 +29,16 @@ impl EventHandler for Handler {
                 crate::feature::verify::handler::ensure_verify_message(&http, verify_channel).await
             {
                 warn!(error = %e, "ensure_verify_message failed");
+            }
+            if let Some(gid) = gid_clone {
+                if let Err(e) = crate::feature::ticket::handler::ensure_ticket_panel(
+                    &http2,
+                    serenity::all::GuildId::new(gid),
+                )
+                .await
+                {
+                    warn!(error=%e, "ensure_ticket_panel failed");
+                }
             }
         });
         if let Some(gid) = self.guild_id {
@@ -55,13 +67,24 @@ impl EventHandler for Handler {
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: serenity::all::Interaction) {
-        if let Some(comp) = interaction.as_message_component() {
-            let comp = comp.clone();
-            if comp.data.custom_id.starts_with("ticket_")
-                || comp.data.custom_id.starts_with("lang_")
-            {
-                handle_component(ctx, comp).await;
+        match interaction {
+            serenity::all::Interaction::Component(comp) => {
+                let c = comp.clone();
+                if c.data.custom_id.starts_with("ticket_")
+                    || c.data.custom_id == "ticket_topic"
+                    || c.data.custom_id.starts_with("lang_")
+                    || c.data.custom_id == "help:category"
+                {
+                    handle_component(ctx, c).await;
+                }
             }
+            serenity::all::Interaction::Modal(modal) => {
+                let m = modal.clone();
+                if m.data.custom_id.starts_with("ticket_modal:") {
+                    crate::feature::ticket::handler::on_modal(ctx, m).await;
+                }
+            }
+            _ => {}
         }
     }
 
@@ -85,6 +108,10 @@ async fn handle_component(ctx: Context, interaction: ComponentInteraction) {
                 crate::feature::lang::handler::on_lang_button(ctx.clone(), member, lang).await;
             }
         }
+    } else if id == "ticket_topic" {
+        crate::feature::ticket::handler::on_select(ctx.clone(), interaction.clone()).await;
+    } else if id == "help:category" {
+        crate::feature::help::handler::on_select(ctx.clone(), interaction.clone()).await;
     } else if id.starts_with("ticket_") {
         crate::feature::ticket::handler::on_button(ctx.clone(), interaction.clone()).await;
     }
