@@ -1,10 +1,12 @@
-//! Ticket handler - SelectMenu + Modal + private channels, claim/close with transcript.
+//! Ticket handler - SelectMenu + Modal + private channels (or Forum posts if TICKET_USE_FORUM), claim/close with transcript.
 use super::service;
+use crate::feature::ticket::forum;
 use serenity::all::{
-    ChannelId, ChannelType, ComponentInteraction, Context, CreateActionRow, CreateChannel,
-    CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage, CreateMessage,
-    CreateModal, CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption, GuildId,
-    InputTextStyle, ModalInteraction, PermissionOverwrite, PermissionOverwriteType, Permissions,
+    AutoArchiveDuration, ChannelId, ChannelType, ComponentInteraction, Context, CreateActionRow,
+    CreateChannel, CreateEmbed, CreateForumPost, CreateInteractionResponse,
+    CreateInteractionResponseMessage, CreateMessage, CreateModal, CreateSelectMenu,
+    CreateSelectMenuKind, CreateSelectMenuOption, GuildId, InputTextStyle, ModalInteraction,
+    PermissionOverwrite, PermissionOverwriteType, Permissions,
 };
 use tracing::{info, warn};
 
@@ -362,9 +364,93 @@ async fn create_ticket_channel(
     subject: &str,
     description: &str,
 ) -> anyhow::Result<ChannelId> {
+    // Forum branch (if TICKET_USE_FORUM=true and forum available) - each ticket = forum post with tag
+    if forum::is_enabled() {
+        if let Ok(forum_id) = forum::ensure_forum_channel(&ctx.http, guild_id).await {
+            if let Some(tag_id) = forum::tag_id_for_async(&ctx.http, forum_id, topic).await {
+                let embed = CreateEmbed::new()
+                    .title(subject)
+                    .description(format!(
+                        "Hello <@{}> — staff will be with you shortly.\n\n**Topic:** {label} (`{topic}`)\n**Description:**\n{description}",
+                        user.id
+                    ))
+                    .color(0x0058_65F2)
+                    .footer(serenity::all::CreateEmbedFooter::new(format!(
+                        "Opened by {} • {}",
+                        user.name, topic
+                    )));
+                // Forum post name must be 1-100 chars, use sanitized subject
+                let post_name = subject.chars().take(90).collect::<String>();
+                let post_name = if post_name.trim().len() < 2 {
+                    format!("ticket-{topic}-{}", sanitize_name(&user.name))
+                } else {
+                    post_name
+                };
+                match forum_id
+                    .create_forum_post(
+                        &ctx.http,
+                        CreateForumPost::new(post_name.clone(), CreateMessage::new().embed(embed))
+                            .add_applied_tag(tag_id)
+                            .auto_archive_duration(AutoArchiveDuration::OneWeek),
+                    )
+                    .await
+                {
+                    Ok(thread) => {
+                        let thread_id = thread.id;
+                        if let Some(pool) = service::pool() {
+                            service::record_ticket(
+                                pool,
+                                thread_id.get(),
+                                guild_id.get(),
+                                user.id.get(),
+                            )
+                            .await;
+                        }
+                        let row = serenity::all::CreateActionRow::Buttons(vec![
+                            serenity::all::CreateButton::new("ticket_claim")
+                                .label("Claim")
+                                .style(serenity::all::ButtonStyle::Primary)
+                                .emoji('🙋'),
+                            serenity::all::CreateButton::new("ticket_close")
+                                .label("Close")
+                                .style(serenity::all::ButtonStyle::Danger)
+                                .emoji('🔒'),
+                        ]);
+                        let _ = thread_id
+                            .send_message(
+                                &ctx.http,
+                                CreateMessage::new()
+                                    .content(format!("<@{}> — staff control", user.id))
+                                    .components(vec![row]),
+                            )
+                            .await;
+                        let _ = ChannelId::new(TICKET_LOGS)
+                            .send_message(
+                                &ctx.http,
+                                CreateMessage::new().embed(
+                                    CreateEmbed::new()
+                                        .title("Ticket opened (forum)")
+                                        .description(format!(
+                                            "<@{}> opened forum post <#{}> — **{label}**\nSubject: {subject}",
+                                            user.id, thread_id
+                                        ))
+                                        .color(0x0058_65F2),
+                                ),
+                            )
+                            .await;
+                        info!(user=%user.name, channel=%thread_id, topic=%topic, forum=%forum_id, "ticket created via forum");
+                        return Ok(thread_id);
+                    }
+                    Err(e) => {
+                        warn!(error=%e, "forum post failed, falling back to channel");
+                    }
+                }
+            }
+        }
+    }
+    // Fallback: classic text channel in SUPPORT category
     let safe_user = sanitize_name(&user.name);
     let name = format!("ticket-{topic}-{safe_user}");
-    // Discord channel name max 100, lowercase alphanumeric + dashes
     let name = name.chars().take(90).collect::<String>();
     let overwrites = build_ticket_overwrites(user.id.get());
     let channel = guild_id
@@ -400,7 +486,6 @@ async fn create_ticket_channel(
     let _ = channel
         .send_message(&ctx.http, CreateMessage::new().embed(embed).components(vec![row]))
         .await;
-    // Log opening
     let _ = ChannelId::new(TICKET_LOGS)
         .send_message(
             &ctx.http,
@@ -548,8 +633,26 @@ async fn handle_close(ctx: Context, interaction: ComponentInteraction) {
         service::cleanup_ticket(pool, channel_id.get()).await;
     }
     tokio::time::sleep(std::time::Duration::from_secs(2)).await; // SAFETY: small delay to let log flush, not in command path, jitter not needed
-    let _ = channel_id.delete(&ctx.http).await;
-    info!(channel=%channel_id, "ticket closed");
+    // Forum threads: archive+lock instead of delete (keeps history, respects forum lifecycle)
+    let is_thread = ctx
+        .http
+        .get_channel(channel_id)
+        .await
+        .map(|c| matches!(c, serenity::all::Channel::Guild(gc) if gc.thread_metadata.is_some()))
+        .unwrap_or(false);
+    if is_thread {
+        let _ = channel_id
+            .edit_thread(&ctx.http, serenity::all::EditThread::new().archived(true).locked(true))
+            .await;
+        // Try delete if archive fails (fallback)
+        if ctx.http.get_channel(channel_id).await.is_ok() {
+            // Already archived, no delete needed; optionally delete after archive
+        }
+        info!(channel=%channel_id, thread=true, "ticket thread closed (archived)");
+    } else {
+        let _ = channel_id.delete(&ctx.http).await;
+        info!(channel=%channel_id, "ticket closed");
+    }
 }
 
 fn allow_view(id: serenity::all::RoleId) -> PermissionOverwrite {

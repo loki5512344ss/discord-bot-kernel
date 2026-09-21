@@ -57,7 +57,48 @@ cargo run --bin ds-setup -- bootstrap --guild-id 123 --dry-run
 - [ ] **Presence `watching N tickets` + counter** - `Context::set_presence(ActivityData::watching(format!("{} tickets", count)))`, обновлять на `create/close/reconcile`; `ticket_count` из `SELECT COUNT(*) FROM tickets WHERE guild_id=?`.
 - [ ] **Threads vs Channels** - сейчас `ChannelType::Text` в SUPPORT (лимит 500 каналов, видно в списке). При >50 тикетов/день → мигрировать на `ChannelType::PublicThread`/`PrivateThread` внутри `#open-ticket` (лимит 1000 активных тредов, авто-архив 24ч/7д). Флаг `TICKET_USE_THREADS=false` в env, абстрагировать `create_ticket_channel` vs `create_thread`.
 - [ ] **Anti-spam** - в тикет-каналах: `slowmode 5s` по умолчанию, `mention` лимит (1 @everyone → warn), бот роль выше `Verified`/`Muted` (иначе `403 add_roles`), `MANAGE_ROLES`/`MANAGE_CHANNELS` проверке на старте.
-- [ ] **Forum/channel tags vs одна категория** - см. § Forum Tags ниже.
+- [ ] **Forum/channel tags vs одна категория** - см. § Forum Tags ниже (детальный план Phase 3.2).
+
+### Phase 3.2 - Forum Tags — детальный план (начни делать сейчас)
+**Цель:** один Forum-канал `#🎫-support-forum` вместо категории `SUPPORT` + 5 каналов-тикетов. Каждый тикет = пост с тегом.
+
+- [ ] **1. Config** - `src/config/keys.rs` + `loader.rs`: `TICKET_USE_FORUM=false`, `TICKET_FORUM_CHANNEL_ID` (опционально), `TICKET_FORUM_NAME=support-forum`. Парсинг `env_bool`.
+- [ ] **2. Модуль `feature/ticket/forum.rs`** (≤200 строк):
+  - `FORUM_TAGS: &[(&str,&str,char)] = [("general","General",🛠), ("bug","Bug",🐛), ("appeal","Appeal",🔇), ("report","Report",😡), ("owners","Owners",👑)]` — зеркало `TOPICS` в handler.
+  - `ensure_forum_channel(ctx, guild_id) -> ChannelId`:
+    1. `guild.channels()` ищет `kind==Forum && name.contains("support-forum") || id==TICKET_FORUM_CHANNEL_ID`.
+    2. Если нет → `guild.create_channel(CreateChannel::new("🎫-support-forum").kind(Forum).position(0).topic("Tickets via forum tags").available_tags(create_tags()).default_forum_layout(ListView).flags(REQUIRE_TAG))`. Логи.
+    3. Если есть но `available_tags.len()!=5 || name mismatch` → `channel.edit(EditChannel::new().available_tags(...))` (идемпотентно, проверка по именам тегов).
+    4. Возвращает `forum_id`, кэширует `tag_name→ForumTagId` в `OnceLock<HashMap>`.
+  - Хелпер `tag_id_for(topic) -> Option<ForumTagId>` — lookup после ensure.
+  - Тесты: unit `test_tag_mapping`.
+- [ ] **3. Ветвление создания** - `handler.rs::create_ticket(...)`:
+  ```rust
+  if is_forum_enabled() {
+    let forum_id = forum::ensure_forum_channel(&ctx, guild_id).await?;
+    let tag = forum::tag_id_for(topic).ok_or("unknown topic")?;
+    let post = forum_id.create_forum_post(&ctx.http,
+      CreateForumPost::new(sanitize_name(&subject), CreateMessage::new().embed(embed))
+        .add_applied_tag(tag)
+        .auto_archive_duration(AutoArchiveDuration::OneWeek)
+    ).await?;
+    let thread_id = post.id; // пост = тред-канал
+    thread_id.send_message(...claim/close buttons...).await?;
+    // permissions: thread.add_member(user.id).await?; // юзер уже owner, staff видны через форум perms
+    record_ticket(pool, thread_id, guild, user.id).await;
+  } else {
+    // старый путь: guild.create_channel(...SUPPORT_CATEGORY...).await
+  }
+  ```
+  - Флаг читается из `std::env::var("TICKET_USE_FORUM")` + `config` (не ломает текущий режим, default `false`).
+  - Сохраняет совместимость: `ensure_ticket_panel` остаётся в `#open-ticket`, форум не трогает панель.
+- [ ] **4. Транскрипт/Close/Delete для тредов**:
+  - `fetch_transcript(http, thread_id)` работает и для тредов (тот же `GetMessages`).
+  - `handle_close`: для форума — `thread.edit(EditThread::new().archived(true).locked(true)).await` + `deliver_transcript` + `cleanup`, вместо `delete`. `Delete` кнопка → `channel.delete`.
+  - Логика `is_forum_ticket` по `channel.kind==PublicThread/PrivateThread`.
+- [ ] **5. Миграция/совместимость**: старые channel-тикеты остаются, новые форум-тикеты попадают в ту же `tickets` таблицу (`channel_id` теперь может быть thread id). `orphan reconciliation` проверяет и `GuildChannel` и `Thread`.
+- [ ] **6. Ready хук**: в `core/bot.rs::ready` добавить `if is_forum_enabled() { forum::ensure_forum_channel(...).await }` параллельно `ensure_ticket_panel`.
+- [ ] **7. Документация/flag**: `.env.example` добавить `TICKET_USE_FORUM=false` + `TICKET_FORUM_CHANNEL_ID=`, `SETUP.md` — как включить, `ds-setup` bootstrap создаёт форум если флаг true.
 
 ## Phase 4 - Комьюнити
 - [x] Welcome embed (`feature/welcome`)

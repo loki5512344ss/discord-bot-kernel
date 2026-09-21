@@ -9,4 +9,6 @@ pub struct BotConfig {
     pub super_admin_id: Option<u64>,
     pub db_path: String,
     pub activity: String,
+    pub ticket_use_forum: bool,
+    pub ticket_forum_channel_id: Option<u64>,
 }

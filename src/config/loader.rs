@@ -12,6 +12,13 @@ fn env_opt(key: &str) -> Option<u64> {
     std::env::var(key).ok()?.parse().ok()
 }
 
+fn env_bool(key: &str) -> bool {
+    matches!(
+        std::env::var(key).ok().as_deref().map(|v| v.trim().to_ascii_lowercase()),
+        Some(ref s) if s == "1" || s == "true" || s == "yes" || s == "on"
+    )
+}
+
 pub fn load() -> Result<BotConfig> {
     let token = env(keys::DISCORD_TOKEN, None)?;
     if token.trim().is_empty() || token == "your_token_here" {
@@ -24,5 +31,7 @@ pub fn load() -> Result<BotConfig> {
         super_admin_id: env_opt(keys::SUPER_ADMIN_ID),
         db_path: env(keys::DB_PATH, Some("data/bot.db"))?,
         activity: env(keys::BOT_ACTIVITY, Some("!help"))?,
+        ticket_use_forum: env_bool(keys::TICKET_USE_FORUM),
+        ticket_forum_channel_id: env_opt(keys::TICKET_FORUM_CHANNEL_ID),
     })
 }

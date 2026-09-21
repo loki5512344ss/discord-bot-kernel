@@ -4,3 +4,5 @@ pub const GUILD_ID: &str = "GUILD_ID";
 pub const SUPER_ADMIN_ID: &str = "SUPER_ADMIN_ID";
 pub const DB_PATH: &str = "DB_PATH";
 pub const BOT_ACTIVITY: &str = "BOT_ACTIVITY";
+pub const TICKET_USE_FORUM: &str = "TICKET_USE_FORUM";
+pub const TICKET_FORUM_CHANNEL_ID: &str = "TICKET_FORUM_CHANNEL_ID";

@@ -39,6 +39,16 @@ impl EventHandler for Handler {
                 {
                     warn!(error=%e, "ensure_ticket_panel failed");
                 }
+                if crate::feature::ticket::forum::is_enabled() {
+                    if let Err(e) = crate::feature::ticket::forum::ensure_forum_channel(
+                        &http2,
+                        serenity::all::GuildId::new(gid),
+                    )
+                    .await
+                    {
+                        warn!(error=%e, "ensure_forum_channel failed");
+                    }
+                }
             }
         });
         if let Some(gid) = self.guild_id {

@@ -18,7 +18,13 @@ async fn main() -> anyhow::Result<()> {
     // Use Lifecycle (avoid dead_code) - Phase 2 wiring placeholder.
     let _ = <() as Lifecycle>::start(&()).await;
     let _ = <() as Lifecycle>::shutdown(&()).await;
-    info!(prefix = %cfg.prefix, guild = ?cfg.guild_id, "starting bot-kernel");
+    info!(
+        prefix = %cfg.prefix,
+        guild = ?cfg.guild_id,
+        forum = cfg.ticket_use_forum,
+        forum_channel = ?cfg.ticket_forum_channel_id,
+        "starting bot-kernel"
+    );
 
     let pool = db::pool::create(&cfg.db_path).await.context("db pool")?;
     db::migration::run(&pool).await.context("migrations")?;
