@@ -26,6 +26,28 @@ async fn ensure_channel(ctx: &Context, guild_id: GuildId) -> anyhow::Result<Chan
             let _ = id.edit(&ctx.http, edit).await;
             info!(channel=%id, position=%ch.position, parent=?ch.parent_id, "member counter reconciled to top (outside category, pos 0)");
         }
+        // Cleanup old duplicates with different marker (e.g. "👥｜Members:" with separator)
+        for (oid, oc) in channels.iter().filter(|(oid, _)| *oid != id) {
+            if oc.name.contains("Members:") {
+                // Old counter with different marker or duplicate — delete
+                let _ = oid.delete(&ctx.http).await;
+                info!(channel=%oid, name=%oc.name, "old member counter deleted (migration)");
+            }
+        }
+        return Ok(*id);
+    }
+    // Migration: found old marker but not new — rename/move it instead of creating new
+    if let Some((id, _)) = channels.iter().find(|(_, c)| c.name.contains("Members:")) {
+        let _ = id
+            .edit(
+                &ctx.http,
+                EditChannel::new()
+                    .name(format!("{MARKER} 0"))
+                    .position(0)
+                    .category(Option::<ChannelId>::None),
+            )
+            .await;
+        info!(channel=%id, "old counter migrated to new format");
         return Ok(*id);
     }
     // Create outside category at position 0, deny CONNECT so users can't join, but VIEW remains
