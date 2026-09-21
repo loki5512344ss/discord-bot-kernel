@@ -51,45 +51,12 @@ impl EventHandler for Handler {
                         warn!(error=%e, "ensure_forum_channel failed");
                     }
                 }
-                // Orphan reconciliation: purge DB rows whose channel/thread no longer exists
-                let tickets =
-                    crate::feature::ticket::service::count::list_tickets(&pool_clone).await;
-                let mut purged = 0;
-                for (cid_str, gid_str, opener) in tickets {
-                    if gid_str != gid.to_string() {
-                        continue;
-                    }
-                    if let Ok(cid) = cid_str.parse::<u64>() {
-                        let cid = serenity::all::ChannelId::new(cid);
-                        if http2.get_channel(cid).await.is_err() {
-                            let _ = sqlx::query("DELETE FROM tickets WHERE channel_id=?")
-                                .bind(&cid_str)
-                                .execute(&pool_clone)
-                                .await;
-                            let _ = sqlx::query("DELETE FROM ticket_claims WHERE channel_id=?")
-                                .bind(&cid_str)
-                                .execute(&pool_clone)
-                                .await;
-                            purged += 1;
-                            warn!(channel=%cid_str, opener=%opener, "orphan ticket purged");
-                            // Log to ticket-logs without transcript (manually deleted)
-                            let _ = serenity::all::ChannelId::new(1509503717127356446)
-                                .send_message(&http2, serenity::all::CreateMessage::new().embed(serenity::all::CreateEmbed::new().title("⚠️ Ticket Manually Deleted").description(format!("Ticket <#{cid_str}> (opener <@{opener}>) manually deleted — transcript unavailable.")).color(0x00ED_4245)))
-                                .await;
-                        }
-                    }
-                }
-                if purged > 0 {
-                    info!(purged, "orphan tickets reconciled");
-                }
-                // Presence: watching N tickets
+                crate::feature::ticket::service::count::reconcile_orphans(&http2, &pool_clone, gid)
+                    .await;
                 let count =
                     crate::feature::ticket::service::count::count_tickets(&pool_clone, gid).await;
                 ctx_clone.set_presence(
-                    Some(serenity::all::ActivityData::custom(format!(
-                        "watching {} tickets",
-                        count
-                    ))),
+                    Some(serenity::all::ActivityData::watching(format!("{} tickets", count))),
                     serenity::all::OnlineStatus::Online,
                 );
             }
