@@ -146,8 +146,18 @@ pub async fn handle_close_modal(ctx: Context, interaction: serenity::all::ModalI
         haste_url.clone(),
     )
     .await;
+    let opener_for_cooldown = if let Some(pool) = service::pool() {
+        service::get_opener(pool, channel_id.get()).await
+    } else {
+        None
+    };
     if let Some(pool) = service::pool() {
         service::cleanup_ticket(pool, channel_id.get()).await;
+        if let Some(opener) = opener_for_cooldown {
+            if let Some(gid) = interaction.guild_id {
+                service::set_cooldown(pool, gid.get(), opener, 300).await;
+            }
+        }
     }
     let control_row = serenity::all::CreateActionRow::Buttons(vec![
         serenity::all::CreateButton::new("ticket_reopen")

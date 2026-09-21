@@ -136,6 +136,20 @@ pub async fn on_modal(ctx: Context, interaction: ModalInteraction) {
                 .await;
             return;
         }
+        if let Some(rem) = service::is_on_cooldown(pool, guild_id.get(), user.id.get()).await {
+            let _ = interaction
+                .create_followup(
+                    &ctx.http,
+                    serenity::all::CreateInteractionResponseFollowup::new()
+                        .content(format!(
+                            "Cooldown: wait {}s before new ticket (5m after close).",
+                            rem
+                        ))
+                        .ephemeral(true),
+                )
+                .await;
+            return;
+        }
     }
     if let Ok(channels) = guild_id.channels(&ctx.http).await {
         let exists = channels.values().any(|c| {

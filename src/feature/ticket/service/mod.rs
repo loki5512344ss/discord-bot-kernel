@@ -65,6 +65,43 @@ pub async fn cleanup_ticket(p: &SqlitePool, c: u64) {
     let _ = sqlx::query("DELETE FROM tickets WHERE channel_id=?").bind(c.to_string()).execute(p).await;
     let _ = sqlx::query("DELETE FROM ticket_claims WHERE channel_id=?").bind(c.to_string()).execute(p).await;
 }
+pub async fn is_on_cooldown(p: &SqlitePool, g: u64, u: u64) -> Option<u64> {
+    let _ = sqlx::query("CREATE TABLE IF NOT EXISTS ticket_cooldowns (user_id TEXT NOT NULL, guild_id TEXT NOT NULL, expires_at INTEGER NOT NULL, PRIMARY KEY (user_id, guild_id))").execute(p).await;
+    let row: Option<(i64,)> =
+        sqlx::query_as("SELECT expires_at FROM ticket_cooldowns WHERE user_id=? AND guild_id=?")
+            .bind(u.to_string())
+            .bind(g.to_string())
+            .fetch_optional(p)
+            .await
+            .unwrap_or(None);
+    if let Some((exp,)) = row {
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+                as i64;
+        if exp > now {
+            return Some((exp - now) as u64);
+        }
+        let _ = sqlx::query("DELETE FROM ticket_cooldowns WHERE user_id=? AND guild_id=?")
+            .bind(u.to_string())
+            .bind(g.to_string())
+            .execute(p)
+            .await;
+    }
+    None
+}
+pub async fn set_cooldown(p: &SqlitePool, g: u64, u: u64, secs: u64) {
+    let _ = sqlx::query("CREATE TABLE IF NOT EXISTS ticket_cooldowns (user_id TEXT NOT NULL, guild_id TEXT NOT NULL, expires_at INTEGER NOT NULL, PRIMARY KEY (user_id, guild_id))").execute(p).await;
+    let exp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        + secs;
+    let _ = sqlx::query(
+        "INSERT OR REPLACE INTO ticket_cooldowns(user_id, guild_id, expires_at) VALUES(?,?,?)",
+    )
+    .bind(u.to_string())
+    .bind(g.to_string())
+    .bind(exp as i64)
+    .execute(p)
+    .await;
+}
 pub async fn add_user_to_ticket(
     http: &Http,
     channel_id: ChannelId,
