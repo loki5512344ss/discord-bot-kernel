@@ -39,8 +39,8 @@ impl EventHandler for Handler {
                 {
                     warn!(error=%e, "ensure_ticket_panel failed");
                 }
-                if crate::feature::ticket::forum::is_enabled() {
-                    if let Err(e) = crate::feature::ticket::forum::ensure_forum_channel(
+                if crate::feature::ticket::service::forum::is_enabled() {
+                    if let Err(e) = crate::feature::ticket::service::forum::ensure_forum_channel(
                         &http2,
                         serenity::all::GuildId::new(gid),
                     )
