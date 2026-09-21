@@ -575,6 +575,29 @@ async fn handle_claim(ctx: Context, interaction: ComponentInteraction) {
     let Some(guild_id) = interaction.guild_id else { return };
     let channel_id = interaction.channel_id;
     let claimer = interaction.user.clone();
+    // Staff-only + not opener check (creator cannot claim own ticket)
+    if let Some(pool) = service::pool() {
+        if let Some(opener) = service::get_opener(pool, channel_id.get()).await {
+            if opener == claimer.id.get() {
+                ephemeral(&ctx, &interaction, "You cannot claim your own ticket.".into()).await;
+                return;
+            }
+        }
+    }
+    // Require Staff/Owner/Moderator role
+    const STAFF_ROLES: &[u64] = &[
+        1547203757711040572, // Staff
+        1547203762035236925, // Owner
+        1547203753373859901, // Moderator
+    ];
+    let is_staff = match guild_id.member(&ctx.http, claimer.id).await {
+        Ok(member) => member.roles.iter().any(|r| STAFF_ROLES.contains(&r.get())),
+        Err(_) => false,
+    };
+    if !is_staff {
+        ephemeral(&ctx, &interaction, "Only staff can claim tickets.".into()).await;
+        return;
+    }
     if let Some(pool) = service::pool() {
         if let Some(existing) = service::get_claim(pool, channel_id.get()).await {
             ephemeral(&ctx, &interaction, format!("Already claimed by <@{existing}>")).await;
