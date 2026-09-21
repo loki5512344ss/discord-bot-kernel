@@ -4,7 +4,7 @@ pub mod claim;
 pub mod create;
 pub mod interaction;
 
-pub use interaction::{on_modal, on_select};
+pub use interaction::on_select;
 
 use serenity::all::{
     ChannelId, Context, CreateActionRow, CreateEmbed, CreateSelectMenu, CreateSelectMenuKind,
@@ -127,6 +127,9 @@ pub async fn on_button(ctx: Context, interaction: serenity::all::ComponentIntera
         "ticket_general" | "ticket_bug" => create::handle_create_legacy(ctx, interaction).await,
         "ticket_claim" => claim::handle_claim(ctx, interaction).await,
         "ticket_close" => claim::handle_close(ctx, interaction).await,
+        "ticket_reopen" => claim::handle_reopen(ctx, interaction).await,
+        "ticket_transcript" => claim::handle_transcript(ctx, interaction).await,
+        "ticket_delete" => claim::handle_delete(ctx, interaction).await,
         _ => {}
     }
 }

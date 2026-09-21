@@ -79,23 +79,133 @@ pub async fn handle_claim(ctx: Context, interaction: serenity::all::ComponentInt
 }
 
 pub async fn handle_close(ctx: Context, interaction: serenity::all::ComponentInteraction) {
+    let modal =
+        serenity::all::CreateModal::new("ticket_close_modal", "Close ticket").components(vec![
+            serenity::all::CreateActionRow::InputText(
+                serenity::all::CreateInputText::new(
+                    serenity::all::InputTextStyle::Paragraph,
+                    "Reason",
+                    "close_reason",
+                )
+                .placeholder("Why are you closing? (10-500 chars)")
+                .min_length(10)
+                .max_length(500)
+                .required(true),
+            ),
+        ]);
+    let _ = interaction
+        .create_response(&ctx.http, serenity::all::CreateInteractionResponse::Modal(modal))
+        .await;
+}
+pub async fn handle_close_modal(ctx: Context, interaction: serenity::all::ModalInteraction) {
+    if interaction.data.custom_id != "ticket_close_modal" {
+        return;
+    }
+    let reason = interaction
+        .data
+        .components
+        .iter()
+        .flat_map(|r| &r.components)
+        .find_map(|c| match c {
+            serenity::all::ActionRowComponent::InputText(it) if it.custom_id == "close_reason" => {
+                it.value.clone()
+            }
+            _ => None,
+        })
+        .unwrap_or_default();
+    if reason.trim().len() < 10 {
+        let _ = interaction
+            .create_response(
+                &ctx.http,
+                serenity::all::CreateInteractionResponse::Message(
+                    serenity::all::CreateInteractionResponseMessage::new()
+                        .content("Reason 10-500 chars required.")
+                        .ephemeral(true),
+                ),
+            )
+            .await;
+        return;
+    }
     let channel_id = interaction.channel_id;
     let user = interaction.user.clone();
-    ephemeral(&ctx, &interaction, "Closing ticket... transcript will be saved.".into()).await;
+    let _ = interaction
+        .create_response(
+            &ctx.http,
+            serenity::all::CreateInteractionResponse::Defer(
+                serenity::all::CreateInteractionResponseMessage::new().ephemeral(true),
+            ),
+        )
+        .await;
     let transcript = service::fetch_transcript(&ctx.http, channel_id).await;
     let haste_url = service::upload_hastebin(&transcript).await;
     service::deliver_transcript(
         &ctx.http,
         channel_id,
         user.id.get(),
-        transcript.clone(),
+        format!("{transcript}\n\nClose reason: {reason}"),
         haste_url.clone(),
     )
     .await;
     if let Some(pool) = service::pool() {
         service::cleanup_ticket(pool, channel_id.get()).await;
     }
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await; // SAFETY: small delay to let log flush
+    let control_row = serenity::all::CreateActionRow::Buttons(vec![
+        serenity::all::CreateButton::new("ticket_reopen")
+            .label("Reopen")
+            .style(serenity::all::ButtonStyle::Secondary),
+        serenity::all::CreateButton::new("ticket_transcript")
+            .label("Save")
+            .style(serenity::all::ButtonStyle::Secondary),
+        serenity::all::CreateButton::new("ticket_delete")
+            .label("Delete")
+            .style(serenity::all::ButtonStyle::Danger),
+    ]);
+    let embed = CreateEmbed::new()
+        .title("Ticket closed")
+        .description(format!("Closed by <@{}>\nReason: {reason}", user.id))
+        .color(0x00ED_4245)
+        .footer(serenity::all::CreateEmbedFooter::new("Control panel below"));
+    if let Some(url) = haste_url.clone() {
+        let link_row = serenity::all::CreateActionRow::Buttons(vec![
+            serenity::all::CreateButton::new_link(url).label("View transcript"),
+        ]);
+        let _ = channel_id
+            .send_message(
+                &ctx.http,
+                CreateMessage::new().embed(embed).components(vec![control_row, link_row]),
+            )
+            .await;
+    } else {
+        let _ = channel_id
+            .send_message(
+                &ctx.http,
+                CreateMessage::new().embed(embed).components(vec![control_row]),
+            )
+            .await;
+    }
+    let _ = ChannelId::new(super::TICKET_LOGS)
+        .send_message(
+            &ctx.http,
+            CreateMessage::new().embed(
+                CreateEmbed::new()
+                    .title("Ticket closed")
+                    .description(format!(
+                        "<@{}> closed <#{}>\nReason: {reason}",
+                        user.id, channel_id
+                    ))
+                    .color(0x00ED_4245),
+            ),
+        )
+        .await;
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    let _ = interaction
+        .create_followup(
+            &ctx.http,
+            serenity::all::CreateInteractionResponseFollowup::new()
+                .content(format!("Ticket <#{channel_id}> closed."))
+                .ephemeral(true),
+        )
+        .await;
     let is_thread = ctx
         .http
         .get_channel(channel_id)
@@ -106,9 +216,56 @@ pub async fn handle_close(ctx: Context, interaction: serenity::all::ComponentInt
         let _ = channel_id
             .edit_thread(&ctx.http, serenity::all::EditThread::new().archived(true).locked(true))
             .await;
-        info!(channel=%channel_id, thread=true, "ticket thread closed (archived)");
-    } else {
-        let _ = channel_id.delete(&ctx.http).await;
-        info!(channel=%channel_id, "ticket closed");
     }
+    info!(channel=%channel_id, closer=%user.id, "ticket closed with reason");
+}
+pub async fn handle_reopen(ctx: Context, interaction: serenity::all::ComponentInteraction) {
+    let channel_id = interaction.channel_id;
+    let is_thread = ctx
+        .http
+        .get_channel(channel_id)
+        .await
+        .map(|c| matches!(c, serenity::all::Channel::Guild(gc) if gc.thread_metadata.is_some()))
+        .unwrap_or(false);
+    if is_thread {
+        let _ = channel_id
+            .edit_thread(&ctx.http, serenity::all::EditThread::new().archived(false).locked(false))
+            .await;
+    }
+    ephemeral(&ctx, &interaction, "Ticket reopened.".into()).await;
+    let _ = channel_id
+        .send_message(
+            &ctx.http,
+            CreateMessage::new().embed(
+                CreateEmbed::new()
+                    .title("Ticket reopened")
+                    .description(format!("Reopened by <@{}>", interaction.user.id))
+                    .color(0x0057_F387),
+            ),
+        )
+        .await;
+}
+pub async fn handle_transcript(ctx: Context, interaction: serenity::all::ComponentInteraction) {
+    let channel_id = interaction.channel_id;
+    ephemeral(&ctx, &interaction, "Generating transcript...".into()).await;
+    let transcript = service::fetch_transcript(&ctx.http, channel_id).await;
+    if let Some(url) = service::upload_hastebin(&transcript).await {
+        let _ = channel_id
+            .send_message(&ctx.http, CreateMessage::new().content(format!("Transcript: {url}")))
+            .await;
+    } else {
+        let data =
+            serenity::all::CreateAttachment::bytes(transcript.into_bytes(), "transcript.txt");
+        let _ = channel_id.send_message(&ctx.http, CreateMessage::new().add_file(data)).await;
+    }
+}
+pub async fn handle_delete(ctx: Context, interaction: serenity::all::ComponentInteraction) {
+    let channel_id = interaction.channel_id;
+    ephemeral(&ctx, &interaction, "Deleting ticket...".into()).await;
+    if let Some(pool) = service::pool() {
+        service::cleanup_ticket(pool, channel_id.get()).await;
+    }
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    let _ = channel_id.delete(&ctx.http).await;
+    info!(channel=%channel_id, "ticket deleted via panel");
 }

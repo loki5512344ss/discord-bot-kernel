@@ -91,7 +91,9 @@ impl EventHandler for Handler {
             serenity::all::Interaction::Modal(modal) => {
                 let m = modal.clone();
                 if m.data.custom_id.starts_with("ticket_modal:") {
-                    crate::feature::ticket::handler::on_modal(ctx, m).await;
+                    crate::feature::ticket::handler::interaction::on_modal(ctx, m).await;
+                } else if m.data.custom_id == "ticket_close_modal" {
+                    crate::feature::ticket::handler::claim::handle_close_modal(ctx, m).await;
                 }
             }
             _ => {}
