@@ -166,7 +166,7 @@ pub async fn on_select(ctx: Context, interaction: ComponentInteraction) {
             .await;
         return;
     };
-    // Pre-checks before showing modal (blacklist / existing ticket) to avoid wasted modal.
+    // Fast pre-check: only blacklist (DB, ~5ms). Duplicate check moved to modal submit after defer (guild.channels is 300-500ms and delays modal popup).
     if let Some(guild_id) = interaction.guild_id {
         if let Some(pool) = service::pool() {
             if let Some(reason) =
@@ -178,25 +178,6 @@ pub async fn on_select(ctx: Context, interaction: ComponentInteraction) {
                         CreateInteractionResponse::Message(
                             CreateInteractionResponseMessage::new()
                                 .content(format!("You are blacklisted: {reason}"))
-                                .ephemeral(true),
-                        ),
-                    )
-                    .await;
-                return;
-            }
-        }
-        if let Ok(channels) = guild_id.channels(&ctx.http).await {
-            let exists = channels.values().any(|c| {
-                c.name.starts_with(&format!("ticket-{}", interaction.user.name.to_lowercase()))
-                    || c.name.starts_with(&format!("ticket-{}", interaction.user.id))
-            });
-            if exists {
-                let _ = interaction
-                    .create_response(
-                        &ctx.http,
-                        CreateInteractionResponse::Message(
-                            CreateInteractionResponseMessage::new()
-                                .content("You already have an open ticket.")
                                 .ephemeral(true),
                         ),
                     )
@@ -268,17 +249,24 @@ pub async fn on_modal(ctx: Context, interaction: ModalInteraction) {
         return;
     };
     let user = interaction.user.clone();
-    // Re-check blacklist / duplicate (race between modal open and submit)
+    // Defer immediately — Discord channel creation is slow (1-2s), avoid 3s timeout and UI lag
+    let _ = interaction
+        .create_response(
+            &ctx.http,
+            CreateInteractionResponse::Defer(
+                CreateInteractionResponseMessage::new().ephemeral(true),
+            ),
+        )
+        .await;
+    // Re-check blacklist / duplicate after defer (race between modal open and submit)
     if let Some(pool) = service::pool() {
         if let Some(reason) = service::is_blacklisted(pool, guild_id.get(), user.id.get()).await {
             let _ = interaction
-                .create_response(
+                .create_followup(
                     &ctx.http,
-                    CreateInteractionResponse::Message(
-                        CreateInteractionResponseMessage::new()
-                            .content(format!("You are blacklisted: {reason}"))
-                            .ephemeral(true),
-                    ),
+                    serenity::all::CreateInteractionResponseFollowup::new()
+                        .content(format!("You are blacklisted: {reason}"))
+                        .ephemeral(true),
                 )
                 .await;
             return;
@@ -291,27 +279,16 @@ pub async fn on_modal(ctx: Context, interaction: ModalInteraction) {
         });
         if exists {
             let _ = interaction
-                .create_response(
+                .create_followup(
                     &ctx.http,
-                    CreateInteractionResponse::Message(
-                        CreateInteractionResponseMessage::new()
-                            .content("You already have an open ticket.")
-                            .ephemeral(true),
-                    ),
+                    serenity::all::CreateInteractionResponseFollowup::new()
+                        .content("You already have an open ticket.")
+                        .ephemeral(true),
                 )
                 .await;
             return;
         }
     }
-    // Defer ephemeral thinking before heavy channel create (avoid 3s timeout)
-    let _ = interaction
-        .create_response(
-            &ctx.http,
-            CreateInteractionResponse::Defer(
-                CreateInteractionResponseMessage::new().ephemeral(true),
-            ),
-        )
-        .await;
     // Use helper that supports details
     match create_ticket_channel(&ctx, guild_id, &user, topic, label, &subject, &description).await {
         Ok(channel_id) => {
