@@ -65,6 +65,43 @@ pub async fn cleanup_ticket(p: &SqlitePool, c: u64) {
     let _ = sqlx::query("DELETE FROM tickets WHERE channel_id=?").bind(c.to_string()).execute(p).await;
     let _ = sqlx::query("DELETE FROM ticket_claims WHERE channel_id=?").bind(c.to_string()).execute(p).await;
 }
+pub async fn add_user_to_ticket(
+    http: &Http,
+    channel_id: ChannelId,
+    user_id: u64,
+) -> anyhow::Result<()> {
+    let uid = serenity::all::UserId::new(user_id);
+    let is_thread = matches!(http.get_channel(channel_id).await, Ok(serenity::all::Channel::Guild(gc)) if gc.thread_metadata.is_some());
+    if is_thread {
+        channel_id.add_thread_member(http, uid).await?;
+    } else {
+        let overwrite = serenity::all::PermissionOverwrite {
+            allow: serenity::all::Permissions::VIEW_CHANNEL
+                | serenity::all::Permissions::SEND_MESSAGES
+                | serenity::all::Permissions::READ_MESSAGE_HISTORY,
+            deny: serenity::all::Permissions::empty(),
+            kind: serenity::all::PermissionOverwriteType::Member(uid),
+        };
+        channel_id.create_permission(http, overwrite).await?;
+    }
+    Ok(())
+}
+pub async fn remove_user_from_ticket(
+    http: &Http,
+    channel_id: ChannelId,
+    user_id: u64,
+) -> anyhow::Result<()> {
+    let uid = serenity::all::UserId::new(user_id);
+    let is_thread = matches!(http.get_channel(channel_id).await, Ok(serenity::all::Channel::Guild(gc)) if gc.thread_metadata.is_some());
+    if is_thread {
+        channel_id.remove_thread_member(http, uid).await?;
+    } else {
+        channel_id
+            .delete_permission(http, serenity::all::PermissionOverwriteType::Member(uid))
+            .await?;
+    }
+    Ok(())
+}
 #[rustfmt::skip]
 pub async fn fetch_transcript(h: &Http, ch: ChannelId) -> String {
     let mut all=Vec::new();

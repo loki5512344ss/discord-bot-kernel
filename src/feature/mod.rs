@@ -39,6 +39,8 @@ pub async fn build_framework(
             ticket::command::ticket_panel(),
             ticket::command::ticket_blacklist_add(),
             ticket::command::ticket_blacklist_remove(),
+            ticket::command::ticket_add(),
+            ticket::command::ticket_remove(),
             moderation::command::clear(),
             moderation::command::slowmode(),
             moderation::command::warn(),
