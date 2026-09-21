@@ -1,4 +1,5 @@
 //! Ticket service
+pub mod count;
 pub mod forum;
 use serenity::all::{ChannelId, CreateAttachment, CreateMessage, Http, MessageId};
 use sqlx::SqlitePool;

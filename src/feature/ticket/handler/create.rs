@@ -100,7 +100,8 @@ pub async fn create_ticket_channel(
             CreateChannel::new(&name)
                 .kind(ChannelType::Text)
                 .category(ChannelId::new(SUPPORT_CATEGORY))
-                .permissions(overwrites),
+                .permissions(overwrites)
+                .rate_limit_per_user(5),
         )
         .await?;
     if let Some(pool) = service::pool() {
