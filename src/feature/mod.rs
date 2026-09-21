@@ -13,8 +13,15 @@ pub mod voice;
 pub mod welcome;
 
 use crate::config::BotConfig;
+use crate::core::{dispatcher::RateLimiter, policy};
 use poise::Framework;
 use sqlx::SqlitePool;
+use std::sync::OnceLock;
+
+static RATE_LIMITER: OnceLock<RateLimiter> = OnceLock::new();
+fn limiter() -> &'static RateLimiter {
+    RATE_LIMITER.get_or_init(|| RateLimiter::new(policy::RATE_LIMIT_WINDOW_SECS))
+}
 
 pub struct Data {
     pub cfg: BotConfig,
@@ -42,8 +49,11 @@ pub async fn build_framework(
             ticket::command::ticket_add(),
             ticket::command::ticket_remove(),
             moderation::command::clear(),
+            moderation::command::purge(),
             moderation::command::slowmode(),
             moderation::command::warn(),
+            moderation::mute::mute(),
+            moderation::mute::unmute(),
             blog::command::blog_post(),
             poll::command::poll(),
             remind::command::remind(),
@@ -52,6 +62,36 @@ pub async fn build_framework(
             prefix: Some(cfg.prefix.clone().into()),
             ..Default::default()
         },
+        command_check: Some(|ctx| {
+            Box::pin(async move {
+                let key = format!("{}:{}", ctx.author().id, ctx.command().qualified_name);
+                if let Some(rem) = limiter().check(&key).await {
+                    let _ = ctx
+                        .send(
+                            poise::CreateReply::default()
+                                .content(format!("Rate limited — wait {:.1}s", rem.as_secs_f32()))
+                                .ephemeral(true),
+                        )
+                        .await;
+                    return Ok(false);
+                }
+                let (q, _rx) = crate::core::queue::JobQueue::new(
+                    policy::QUEUE_CAPACITY,
+                    policy::MAX_HANDLER_CONCURRENCY,
+                );
+                if q.try_submit(|| {}).is_err() {
+                    let _ = ctx
+                        .send(
+                            poise::CreateReply::default()
+                                .content("Server busy — try again in 2s")
+                                .ephemeral(true),
+                        )
+                        .await;
+                    return Ok(false);
+                }
+                Ok(true)
+            })
+        }),
         ..Default::default()
     };
 

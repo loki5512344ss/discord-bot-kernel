@@ -123,5 +123,46 @@ pub async fn warn(
     Ok(())
 }
 
+/// `/purge <amount> [user]` - bulk delete with optional user filter.
+#[poise::command(
+    slash_command,
+    prefix_command,
+    required_permissions = "MANAGE_MESSAGES",
+    guild_only
+)]
+pub async fn purge(
+    ctx: Ctx<'_>,
+    #[description = "Amount 1-100"] amount: u8,
+    #[description = "Filter by user"] user: Option<serenity::all::User>,
+) -> anyhow::Result<()> {
+    let amount = amount.clamp(1, 100);
+    ctx.defer_ephemeral().await?;
+    let channel = ctx.channel_id();
+    let msgs = channel.messages(ctx.http(), serenity::all::GetMessages::new().limit(100)).await?;
+    let ids: Vec<_> = msgs
+        .iter()
+        .filter(|m| user.as_ref().map(|u| m.author.id == u.id).unwrap_or(true))
+        .take(amount as usize)
+        .map(|m| m.id)
+        .collect();
+    if ids.len() >= 2 {
+        let _ = channel.delete_messages(ctx.http(), &ids).await;
+    } else if let Some(id) = ids.first() {
+        let _ = ctx.http().delete_message(channel, *id, None).await;
+    }
+    let desc = if let Some(u) = user {
+        format!("Purged {} messages from <@{}>", ids.len(), u.id)
+    } else {
+        format!("Purged {} messages", ids.len())
+    };
+    ctx.send(
+        CreateReply::default()
+            .embed(CreateEmbed::new().description(desc).color(0x0057_F387))
+            .ephemeral(true),
+    )
+    .await?;
+    Ok(())
+}
+
 // Keep helper to avoid unused warning (used via get_lang).
 const _: Option<fn(&Ctx<'_>) -> Option<Lang>> = Some(lang_of);

@@ -72,9 +72,66 @@ impl EventHandler for Handler {
     }
 
     async fn guild_member_addition(&self, ctx: Context, member: serenity::all::Member) {
-        // Welcome + lang picker (both in English, no dead_code)
         crate::feature::welcome::handler::on_member_join(ctx.clone(), member.clone()).await;
-        crate::feature::lang::handler::on_member_join(ctx, member).await;
+        crate::feature::lang::handler::on_member_join(ctx.clone(), member.clone()).await;
+        crate::feature::moderation::logging::on_member_join(&ctx, &member).await;
+    }
+
+    async fn guild_member_removal(
+        &self,
+        ctx: Context,
+        guild_id: serenity::all::GuildId,
+        user: serenity::all::User,
+        _member: Option<serenity::all::Member>,
+    ) {
+        crate::feature::moderation::logging::on_member_leave(&ctx, &user, Some(guild_id)).await;
+    }
+
+    async fn message_update(
+        &self,
+        ctx: Context,
+        _old: Option<serenity::all::Message>,
+        new: Option<serenity::all::Message>,
+        event: serenity::all::MessageUpdateEvent,
+    ) {
+        if let Some(msg) = new {
+            if msg.author.bot {
+                return;
+            }
+        }
+        crate::feature::moderation::logging::on_message_edit(&ctx, &event).await;
+    }
+
+    async fn message_delete(
+        &self,
+        ctx: Context,
+        channel_id: serenity::all::ChannelId,
+        deleted_message_id: serenity::all::MessageId,
+        guild_id: Option<serenity::all::GuildId>,
+    ) {
+        crate::feature::moderation::logging::on_message_delete(
+            &ctx,
+            channel_id,
+            deleted_message_id,
+            guild_id,
+        )
+        .await;
+    }
+
+    async fn message_delete_bulk(
+        &self,
+        ctx: Context,
+        channel_id: serenity::all::ChannelId,
+        multiple_deleted_messages_ids: Vec<serenity::all::MessageId>,
+        guild_id: Option<serenity::all::GuildId>,
+    ) {
+        let _ = guild_id;
+        crate::feature::moderation::logging::on_message_delete_bulk(
+            &ctx,
+            channel_id,
+            &multiple_deleted_messages_ids,
+        )
+        .await;
     }
 
     async fn voice_state_update(
