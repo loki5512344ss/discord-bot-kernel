@@ -25,19 +25,37 @@ pub async fn on_member_leave(
     let _ = MOD_LOGS.send_message(&ctx.http, CreateMessage::new().embed(embed)).await;
 }
 
+/// Guards against non-edits: Discord sends `MESSAGE_UPDATE` with
+/// `edited_timestamp = null` ~1s after `MESSAGE_CREATE` for embed-only
+/// messages. Logging that would post a new embed, which gets its own spurious
+/// update → infinite self-sustaining loop in #mod-logs.
 pub async fn on_message_edit(ctx: &Context, event: &MessageUpdateEvent) {
+    if event.edited_timestamp.is_none() {
+        return;
+    }
+    // Never log #mod-logs itself (feedback guard).
+    if event.channel_id == MOD_LOGS {
+        return;
+    }
+    // Author lives in the event payload: serenity message cache is off
+    // (`max_messages = 0`), so the `new: Option<Message>` bot filter never fires.
+    // Webhooks report `bot = true` too (GitHub integrations update themselves).
+    let Some(author) = event.author.as_ref() else { return };
+    if author.bot {
+        return;
+    }
     let Some(content) = event.content.clone() else { return };
     if content.len() > 1000 {
         return;
     }
+    let body = if content.is_empty() {
+        "*content cleared*".to_string()
+    } else {
+        format!("```{}```", content.chars().take(900).collect::<String>())
+    };
     let embed = CreateEmbed::new()
         .title("Message edited")
-        .description(format!(
-            "<#{}> by <@{}>\n```{}```",
-            event.channel_id,
-            event.author.as_ref().map(|a| a.id.to_string()).unwrap_or_default(),
-            content.chars().take(900).collect::<String>()
-        ))
+        .description(format!("<#{}> by <@{}>\n{}", event.channel_id, author.id, body))
         .color(0x00FAA81A);
     let _ = MOD_LOGS.send_message(&ctx.http, CreateMessage::new().embed(embed)).await;
 }

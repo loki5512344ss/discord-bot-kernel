@@ -91,14 +91,12 @@ impl EventHandler for Handler {
         &self,
         ctx: Context,
         _old: Option<serenity::all::Message>,
-        new: Option<serenity::all::Message>,
+        _new: Option<serenity::all::Message>,
         event: serenity::all::MessageUpdateEvent,
     ) {
-        if let Some(msg) = new {
-            if msg.author.bot {
-                return;
-            }
-        }
+        // All guards (real-edit only, bot/webhook authors, #mod-logs itself)
+        // live in moderation::logging - serenity message cache is off, so the
+        // `new` argument is always None and cannot be used for bot filtering.
         crate::feature::moderation::logging::on_message_edit(&ctx, &event).await;
     }
 
