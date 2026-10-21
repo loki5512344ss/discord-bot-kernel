@@ -4,17 +4,16 @@ pub mod claim;
 pub mod create;
 pub mod interaction;
 
+pub use crate::feature::ticket::service::panel::ensure_ticket_panel;
 pub use interaction::on_select;
 
 use serenity::all::{
-    ChannelId, Context, CreateActionRow, CreateEmbed, CreateEmbedFooter, CreateSelectMenu,
-    CreateSelectMenuKind, CreateSelectMenuOption, GuildId,
+    Context, CreateActionRow, CreateEmbed, CreateEmbedFooter, CreateSelectMenu,
+    CreateSelectMenuKind, CreateSelectMenuOption,
 };
-use tracing::info;
 
 pub const SUPPORT_CATEGORY: u64 = 1547213779224363008;
 pub const TICKET_LOGS: u64 = 1509503717127356446;
-const TICKET_PANEL_CHANNEL: u64 = 1509503682914549861;
 
 /// Canonical topics - single source of truth.
 pub struct Topic {
@@ -71,54 +70,6 @@ pub fn panel_select_row() -> CreateActionRow {
         .min_values(1)
         .max_values(1);
     CreateActionRow::SelectMenu(menu)
-}
-
-/// Ensures panel exists in dedicated channel. Idempotent.
-pub async fn ensure_ticket_panel(
-    http: &serenity::http::Http,
-    guild_id: GuildId,
-) -> anyhow::Result<()> {
-    let channel_id =
-        resolve_panel_channel(http, guild_id).await.unwrap_or(ChannelId::new(TICKET_PANEL_CHANNEL));
-    let msgs = channel_id.messages(http, serenity::all::GetMessages::new().limit(20)).await?;
-    let has_panel = msgs.iter().any(|m| {
-        m.author.id.get() == 1527966600173457408
-            && m.components.iter().any(|row| {
-                row.components.iter().any(|c| match c {
-                    serenity::all::ActionRowComponent::SelectMenu(sm) => {
-                        sm.custom_id.as_deref() == Some("ticket_topic")
-                    }
-                    _ => false,
-                })
-            })
-    });
-    if has_panel {
-        info!(channel=%channel_id, "ticket panel already exists");
-        return Ok(());
-    }
-    channel_id
-        .send_message(
-            http,
-            serenity::all::CreateMessage::new()
-                .add_file(crate::util::brand::Banner::Ticket.attachment())
-                .embed(panel_embed())
-                .components(vec![panel_select_row()]),
-        )
-        .await?;
-    info!(channel=%channel_id, "ticket panel created on boot");
-    Ok(())
-}
-
-async fn resolve_panel_channel(
-    http: &serenity::http::Http,
-    guild_id: GuildId,
-) -> Option<ChannelId> {
-    if let Ok(channels) = guild_id.channels(http).await {
-        if let Some((id, _)) = channels.iter().find(|(_, c)| c.name.contains("open-ticket")) {
-            return Some(*id);
-        }
-    }
-    None
 }
 
 /// Handles ticket buttons (claim/close) + legacy create buttons.

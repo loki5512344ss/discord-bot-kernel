@@ -1,6 +1,7 @@
 //! Reaction handler - Verified + language roles (see ARCHITECTURE.md).
 //! English docs, no `sleep` without `// SAFETY:`. No dead code.
 
+use crate::util::brand::{BOT_USER_ID, Banner};
 use serenity::all::{ChannelId, Context, CreateEmbed, CreateMessage, Reaction};
 use tracing::{info, warn};
 
@@ -87,38 +88,40 @@ pub async fn on_reaction_add(ctx: Context, reaction: Reaction) {
     }
 }
 
-/// Ensures verification embed exists once on boot. Call from `ready`.
-/// - Fetches last 20 messages in #verify, looks for bot's `Verification` embed.
-/// - If not found, posts new embed with ✅ and reacts.
-/// - Tracks only that message ID implicitly via channel check (or store in DB later).
+fn boot_embed() -> CreateEmbed {
+    CreateEmbed::new()
+        .title("Verification")
+        .description(
+            "Click ✅ to get access to the server.\n\nChat is locked here - reaction only.",
+        )
+        .image(Banner::Verify.url())
+        .color(crate::util::brand::ACCENT)
+}
+
+/// Ensures one verification embed exists on boot. Call from `ready`.
+/// - Looks for the bot's `Verification` embed in the last 20 messages of #verify.
+/// - Found but outdated: re-rendered in place (reactions stay); up to date: left alone.
+/// - Not found: posts a new embed and reacts with ✅.
 pub async fn ensure_verify_message(
     http: &serenity::http::Http,
     channel_id: ChannelId,
 ) -> anyhow::Result<()> {
     let msgs = channel_id.messages(&http, serenity::all::GetMessages::new().limit(20)).await?;
-    let has_verify = msgs.iter().any(|m| {
-        m.author.id.get() == 1527966600173457408
+    let existing = msgs.iter().find(|m| {
+        m.author.id.get() == BOT_USER_ID
             && m.embeds.iter().any(|e| e.title.as_deref() == Some("Verification"))
     });
-    if has_verify {
-        info!(channel = %channel_id, "verify embed already exists");
+    if let Some(m) = existing {
+        let edit = serenity::all::EditMessage::new().embed(boot_embed());
+        if Banner::Verify.refresh(http, m, edit).await? {
+            info!(channel = %channel_id, msg = %m.id, "verify embed updated in place");
+        } else {
+            info!(channel = %channel_id, msg = %m.id, "verify embed already up to date");
+        }
         return Ok(());
     }
-    let embed = CreateEmbed::new()
-        .title("Verification")
-        .description(
-            "Click ✅ to get access to the server.\n\nChat is locked here - reaction only.",
-        )
-        .image(crate::util::brand::Banner::Verify.url())
-        .color(crate::util::brand::ACCENT);
-    let msg = channel_id
-        .send_message(
-            &http,
-            CreateMessage::new()
-                .add_file(crate::util::brand::Banner::Verify.attachment())
-                .embed(embed),
-        )
-        .await?;
+    let create = CreateMessage::new().add_file(Banner::Verify.attachment()).embed(boot_embed());
+    let msg = channel_id.send_message(&http, create).await?;
     msg.react(&http, '✅').await?;
     info!(channel = %channel_id, msg = %msg.id, "verify embed created on boot");
     Ok(())

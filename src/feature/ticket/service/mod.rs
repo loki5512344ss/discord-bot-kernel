@@ -1,6 +1,7 @@
 //! Ticket service
 pub mod count;
 pub mod forum;
+pub mod panel;
 use serenity::all::{ChannelId, CreateAttachment, CreateMessage, Http, MessageId};
 use sqlx::SqlitePool;
 use std::sync::OnceLock;

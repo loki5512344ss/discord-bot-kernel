@@ -1,6 +1,9 @@
 //! Brand palette and embedded banner images (orange accent, matches loki-code.dev).
 
-use serenity::all::CreateAttachment;
+use serenity::all::{CreateAttachment, EditAttachments, EditMessage, Http, Message};
+
+/// The bot's own user id (author check for boot-managed messages).
+pub const BOT_USER_ID: u64 = 1527966600173457408;
 
 /// Primary accent (the site's orange).
 pub const ACCENT: u32 = 0x00FF_793F;
@@ -74,6 +77,28 @@ impl Banner {
     /// `attachment://` URL for `CreateEmbed::image`.
     pub fn url(self) -> String {
         format!("attachment://{}", self.file())
+    }
+
+    /// True when `msg` already carries this banner inside an accent-coloured embed.
+    pub fn is_on(self, msg: &Message) -> bool {
+        msg.attachments.iter().any(|a| a.filename == self.file())
+            && msg.embeds.iter().any(|e| e.image.is_some() && e.colour.map(|c| c.0) == Some(ACCENT))
+    }
+
+    /// Re-renders an existing message in the current design, swapping its attachments for
+    /// this banner. Returns `false` (no API call) when the message is already up to date.
+    pub async fn refresh(
+        self,
+        http: &Http,
+        msg: &Message,
+        edit: EditMessage,
+    ) -> anyhow::Result<bool> {
+        if self.is_on(msg) {
+            return Ok(false);
+        }
+        let edit = edit.attachments(EditAttachments::new().add(self.attachment()));
+        msg.channel_id.edit_message(http, msg.id, edit).await?;
+        Ok(true)
     }
 }
 
