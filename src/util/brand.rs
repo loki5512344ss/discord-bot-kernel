@@ -79,10 +79,17 @@ impl Banner {
         format!("attachment://{}", self.file())
     }
 
-    /// True when `msg` already carries this banner inside an accent-coloured embed.
+    /// True when `msg` already shows this banner inside an accent-coloured embed.
+    /// Discord folds embed-referenced files into the embed (`attachments` stays empty),
+    /// so the check uses the embed image URL's file name.
     pub fn is_on(self, msg: &Message) -> bool {
-        msg.attachments.iter().any(|a| a.filename == self.file())
-            && msg.embeds.iter().any(|e| e.image.is_some() && e.colour.map(|c| c.0) == Some(ACCENT))
+        let suffix = format!("/{}", self.file());
+        msg.embeds.iter().any(|e| {
+            e.colour.map(|c| c.0) == Some(ACCENT)
+                && e.image
+                    .as_ref()
+                    .is_some_and(|i| i.url.split('?').next().unwrap_or("").ends_with(&suffix))
+        })
     }
 
     /// Re-renders an existing message in the current design, swapping its attachments for
