@@ -122,6 +122,9 @@ pub fn components() -> Vec<CreateActionRow> {
 
 /// Handles `help:category` select. Edits the original help message.
 pub async fn on_select(ctx: Context, interaction: ComponentInteraction) {
+    // UpdateMessage always replaces attachments, so the overview re-uploads its banner;
+    // category pages carry no image and simply drop it.
+    let home = interaction.data.custom_id == "help:home";
     let embed = match interaction.data.custom_id.as_str() {
         "help:home" => main_embed("!", &interaction.user.name, None),
         "help:category" => {
@@ -136,17 +139,14 @@ pub async fn on_select(ctx: Context, interaction: ComponentInteraction) {
         }
         _ => return,
     };
-    // Edit original message via UpdateMessage response
-    let _ = interaction
-        .create_response(
-            &ctx.http,
-            CreateInteractionResponse::UpdateMessage(
-                serenity::all::CreateInteractionResponseMessage::new()
-                    .embed(embed)
-                    .components(components()),
-            ),
-        )
-        .await;
+    let mut msg = serenity::all::CreateInteractionResponseMessage::new()
+        .embed(embed)
+        .components(components());
+    if home {
+        msg = msg.add_file(brand::Banner::Help.attachment());
+    }
+    let _ =
+        interaction.create_response(&ctx.http, CreateInteractionResponse::UpdateMessage(msg)).await;
 }
 
 /// Helper for command.rs to build main page.

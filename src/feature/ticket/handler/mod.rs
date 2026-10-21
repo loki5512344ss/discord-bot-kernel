@@ -7,8 +7,8 @@ pub mod interaction;
 pub use interaction::on_select;
 
 use serenity::all::{
-    ChannelId, Context, CreateActionRow, CreateEmbed, CreateSelectMenu, CreateSelectMenuKind,
-    CreateSelectMenuOption, GuildId,
+    ChannelId, Context, CreateActionRow, CreateEmbed, CreateEmbedFooter, CreateSelectMenu,
+    CreateSelectMenuKind, CreateSelectMenuOption, GuildId,
 };
 use tracing::info;
 
@@ -58,9 +58,7 @@ pub fn panel_embed() -> CreateEmbed {
             • Abuse / spam → blacklist.",
         )
         .color(crate::util::brand::ACCENT)
-        .footer(serenity::all::CreateEmbedFooter::new(
-            "Loki Dev • Select topic → fill form → ticket created",
-        ))
+        .footer(CreateEmbedFooter::new("Loki Dev • Select topic → fill form → ticket created"))
 }
 
 pub fn panel_select_row() -> CreateActionRow {
