@@ -10,10 +10,12 @@ use tracing::info;
 const TICKET_PANEL_CHANNEL: u64 = 1509503682914549861;
 
 fn is_panel(m: &Message) -> bool {
+    let is_topic_menu = |c: &ActionRowComponent| match c {
+        ActionRowComponent::SelectMenu(sm) => sm.custom_id.as_deref() == Some("ticket_topic"),
+        _ => false,
+    };
     m.author.id.get() == BOT_USER_ID
-        && m.components.iter().flat_map(|row| &row.components).any(|c| {
-            matches!(c, ActionRowComponent::SelectMenu(sm) if sm.custom_id.as_deref() == Some("ticket_topic"))
-        })
+        && m.components.iter().flat_map(|row| &row.components).any(is_topic_menu)
 }
 
 /// Ensures exactly one panel exists; an outdated one is re-rendered in place. Idempotent.
