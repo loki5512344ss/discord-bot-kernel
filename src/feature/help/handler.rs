@@ -64,7 +64,7 @@ fn build_category_embed(cat: &str, requester: &str) -> CreateEmbed {
             desc.push_str(&format!("**`{usage}`**\n-# {d}\n\n"));
         }
     }
-    CreateEmbed::new()
+    let mut e = CreateEmbed::new()
         .author(CreateEmbedAuthor::new(format!("LOKI DEV · {}", cat.to_uppercase())))
         .title(format!("{} {}", c.emoji, cat))
         .description(desc)
@@ -72,7 +72,11 @@ fn build_category_embed(cat: &str, requester: &str) -> CreateEmbed {
         .footer(CreateEmbedFooter::new(format!(
             "{} commands · requested by {requester}",
             cmds.len()
-        )))
+        )));
+    if let Some(poster) = brand::Banner::for_category(cat) {
+        e = e.image(poster.url());
+    }
+    e
 }
 
 fn build_main_embed(
@@ -122,11 +126,9 @@ pub fn components() -> Vec<CreateActionRow> {
 
 /// Handles `help:category` select. Edits the original help message.
 pub async fn on_select(ctx: Context, interaction: ComponentInteraction) {
-    // UpdateMessage always replaces attachments, so the overview re-uploads its banner;
-    // category pages carry no image and simply drop it.
-    let home = interaction.data.custom_id == "help:home";
-    let embed = match interaction.data.custom_id.as_str() {
-        "help:home" => main_embed("!", &interaction.user.name, None),
+    // UpdateMessage always replaces attachments, so every page re-uploads its own image.
+    let (embed, image) = match interaction.data.custom_id.as_str() {
+        "help:home" => (main_embed("!", &interaction.user.name, None), Some(brand::Banner::Help)),
         "help:category" => {
             let value = match &interaction.data.kind {
                 ComponentInteractionDataKind::StringSelect { values } => {
@@ -135,15 +137,15 @@ pub async fn on_select(ctx: Context, interaction: ComponentInteraction) {
                 _ => return,
             };
             let Some(cat) = value.strip_prefix("category:") else { return };
-            build_category_embed(cat, &interaction.user.name)
+            (build_category_embed(cat, &interaction.user.name), brand::Banner::for_category(cat))
         }
         _ => return,
     };
     let mut msg = serenity::all::CreateInteractionResponseMessage::new()
         .embed(embed)
         .components(components());
-    if home {
-        msg = msg.add_file(brand::Banner::Help.attachment());
+    if let Some(image) = image {
+        msg = msg.add_file(image.attachment());
     }
     let _ =
         interaction.create_response(&ctx.http, CreateInteractionResponse::UpdateMessage(msg)).await;

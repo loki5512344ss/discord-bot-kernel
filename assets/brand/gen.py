@@ -33,6 +33,30 @@ banner("verify", "VERIFY", "react to unlock the server", "LOKI DEV / ACCESS")
 banner("welcome", "WELCOME", "good to have you here", "LOKI DEV / COMMUNITY")
 banner("help", "COMMANDS", "everything the bot can do", "LOKI DEV / HELP")
 
+
+def poster(name, title, sub, tag):
+    """Vertical 3:4 poster for help category pages; title size shrinks to fit the width."""
+    w, h = 900, 1200
+    size = min(150, int(760 / (0.66 * len(title))))
+    defs = DEFS.replace('"W"', f'"{w}"').replace('"H"', f'"{h}"').replace('cx="82%" cy="50%"', 'cx="50%" cy="36%"')
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">
+{defs}
+<rect width="{w}" height="{h}" fill="#100f0e"/>
+<rect width="{w}" height="{h}" fill="url(#dots)" mask="url(#halo)" opacity="0.9"/>
+<g transform="translate(258 180) scale(8)">{MARK}</g>
+<text x="70" y="860" font-family="'JetBrains Mono','DejaVu Sans Mono',monospace" font-size="26" letter-spacing="4" fill="#ff793f">{tag}</text>
+<text x="64" y="{880 + size}" font-family="Inter,'Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="{size}" letter-spacing="-4" fill="#f2ede5">{title}</text>
+<text x="70" y="1100" font-family="'JetBrains Mono','DejaVu Sans Mono',monospace" font-size="28" fill="#b8afa5">{sub}</text>
+<rect x="70" y="1130" width="160" height="6" fill="#ff793f"/>
+</svg>"""
+    open(f"{name}.svg", "w").write(svg)
+    subprocess.run(["rsvg-convert", "-w", str(w), f"{name}.svg", "-o", f"{name}.png"], check=True)
+
+poster("help-information", "INFORMATION", "server &amp; bot info", "LOKI DEV / INFORMATION")
+poster("help-moderation", "MODERATION", "mod tools - requires perms", "LOKI DEV / MODERATION")
+poster("help-tickets", "TICKETS", "support tickets &amp; blacklist", "LOKI DEV / TICKETS")
+poster("help-utility", "UTILITY", "polls, reminders, blog", "LOKI DEV / UTILITY")
+
 avatar = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="1024" height="1024">
 <defs>
   <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9a5d"/><stop offset="1" stop-color="#ff5a1f"/></linearGradient>

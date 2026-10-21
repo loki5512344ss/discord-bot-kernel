@@ -21,15 +21,35 @@ pub enum Banner {
     Verify,
     Welcome,
     Help,
+    /// Vertical 3:4 posters for `/help` category pages.
+    HelpInformation,
+    HelpModeration,
+    HelpTickets,
+    HelpUtility,
 }
 
 impl Banner {
+    /// Poster for a `/help` category (by display name, e.g. `"Moderation"`).
+    pub fn for_category(name: &str) -> Option<Self> {
+        match name {
+            "Information" => Some(Self::HelpInformation),
+            "Moderation" => Some(Self::HelpModeration),
+            "Tickets" => Some(Self::HelpTickets),
+            "Utility" => Some(Self::HelpUtility),
+            _ => None,
+        }
+    }
+
     fn file(self) -> &'static str {
         match self {
             Self::Ticket => "ticket.png",
             Self::Verify => "verify.png",
             Self::Welcome => "welcome.png",
             Self::Help => "help.png",
+            Self::HelpInformation => "help-information.png",
+            Self::HelpModeration => "help-moderation.png",
+            Self::HelpTickets => "help-tickets.png",
+            Self::HelpUtility => "help-utility.png",
         }
     }
 
@@ -39,6 +59,10 @@ impl Banner {
             Self::Verify => include_bytes!("../../assets/brand/verify.png"),
             Self::Welcome => include_bytes!("../../assets/brand/welcome.png"),
             Self::Help => include_bytes!("../../assets/brand/help.png"),
+            Self::HelpInformation => include_bytes!("../../assets/brand/help-information.png"),
+            Self::HelpModeration => include_bytes!("../../assets/brand/help-moderation.png"),
+            Self::HelpTickets => include_bytes!("../../assets/brand/help-tickets.png"),
+            Self::HelpUtility => include_bytes!("../../assets/brand/help-utility.png"),
         }
     }
 
@@ -50,5 +74,19 @@ impl Banner {
     /// `attachment://` URL for `CreateEmbed::image`.
     pub fn url(self) -> String {
         format!("attachment://{}", self.file())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Banner;
+
+    #[test]
+    fn every_help_category_has_a_poster() {
+        for (name, _) in crate::feature::help::categories::all() {
+            let b = Banner::for_category(name).expect("poster for category");
+            assert!(b.url().starts_with("attachment://help-"));
+            assert!(!b.bytes().is_empty());
+        }
     }
 }
