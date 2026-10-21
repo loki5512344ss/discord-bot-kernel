@@ -60,7 +60,7 @@ pub async fn handle_claim(ctx: Context, interaction: serenity::all::ComponentInt
                         "Claimed by {}",
                         claimer.name
                     )))
-                    .color(0x0057_F387),
+                    .color(crate::util::brand::OK),
             ),
         )
         .await;
@@ -71,7 +71,7 @@ pub async fn handle_claim(ctx: Context, interaction: serenity::all::ComponentInt
                 CreateEmbed::new()
                     .title("Ticket claimed")
                     .description(format!("<@{}> claimed ticket <#{}>", claimer.id, channel_id))
-                    .color(0x0057_F387),
+                    .color(crate::util::brand::OK),
             ),
         )
         .await;
@@ -173,7 +173,7 @@ pub async fn handle_close_modal(ctx: Context, interaction: serenity::all::ModalI
     let embed = CreateEmbed::new()
         .title("Ticket closed")
         .description(format!("Closed by <@{}>\nReason: {reason}", user.id))
-        .color(0x00ED_4245)
+        .color(crate::util::brand::DANGER)
         .footer(serenity::all::CreateEmbedFooter::new("Control panel below"));
     if let Some(url) = haste_url.clone() {
         let link_row = serenity::all::CreateActionRow::Buttons(vec![
@@ -203,7 +203,7 @@ pub async fn handle_close_modal(ctx: Context, interaction: serenity::all::ModalI
                         "<@{}> closed <#{}>\nReason: {reason}",
                         user.id, channel_id
                     ))
-                    .color(0x00ED_4245),
+                    .color(crate::util::brand::DANGER),
             ),
         )
         .await;
@@ -250,7 +250,7 @@ pub async fn handle_reopen(ctx: Context, interaction: serenity::all::ComponentIn
                 CreateEmbed::new()
                     .title("Ticket reopened")
                     .description(format!("Reopened by <@{}>", interaction.user.id))
-                    .color(0x0057_F387),
+                    .color(crate::util::brand::OK),
             ),
         )
         .await;

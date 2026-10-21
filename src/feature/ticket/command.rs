@@ -8,7 +8,13 @@ use serenity::all::CreateEmbed;
 pub async fn ticket_panel(ctx: Ctx<'_>) -> anyhow::Result<()> {
     let embed = crate::feature::ticket::handler::panel_embed();
     let row = crate::feature::ticket::handler::panel_select_row();
-    ctx.send(CreateReply::default().embed(embed).components(vec![row])).await?;
+    ctx.send(
+        CreateReply::default()
+            .attachment(crate::util::brand::Banner::Ticket.attachment())
+            .embed(embed)
+            .components(vec![row]),
+    )
+    .await?;
     Ok(())
 }
 
@@ -33,7 +39,7 @@ pub async fn ticket_blacklist_add(
             .embed(
                 CreateEmbed::new()
                     .description(format!("Blacklisted <@{}>: {reason}", user.id))
-                    .color(0x00ED_4245),
+                    .color(crate::util::brand::DANGER),
             )
             .ephemeral(true),
     )
@@ -63,7 +69,7 @@ pub async fn ticket_blacklist_remove(
     };
     ctx.send(
         CreateReply::default()
-            .embed(CreateEmbed::new().description(msg).color(0x0057_F387))
+            .embed(CreateEmbed::new().description(msg).color(crate::util::brand::OK))
             .ephemeral(true),
     )
     .await?;

@@ -60,7 +60,7 @@ pub async fn mute(
     let embed = CreateEmbed::new()
         .title(format!("Muted {}", user.name))
         .description(format!("Duration: {}s\nReason: {}", dur.as_secs(), reason))
-        .color(0x00ED_4245);
+        .color(crate::util::brand::DANGER);
     ctx.send(CreateReply::default().embed(embed).ephemeral(true)).await?;
     log_mod(&ctx, &format!("Mute <@{}> {}s reason: {}", user.id, dur.as_secs(), reason)).await;
     Ok(())
@@ -89,7 +89,7 @@ pub async fn unmute(
             .embed(
                 CreateEmbed::new()
                     .description(format!("Unmuted <@{}>", user.id))
-                    .color(0x0057_F387),
+                    .color(crate::util::brand::OK),
             )
             .ephemeral(true),
     )
@@ -103,8 +103,12 @@ async fn log_mod(ctx: &Ctx<'_>, text: &str) {
     let _ = ch
         .send_message(
             ctx.http(),
-            serenity::all::CreateMessage::new()
-                .embed(CreateEmbed::new().title("Mod log").description(text).color(0x00ED_4245)),
+            serenity::all::CreateMessage::new().embed(
+                CreateEmbed::new()
+                    .title("Mod log")
+                    .description(text)
+                    .color(crate::util::brand::DANGER),
+            ),
         )
         .await;
 }

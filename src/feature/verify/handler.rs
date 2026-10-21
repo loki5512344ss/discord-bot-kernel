@@ -109,8 +109,16 @@ pub async fn ensure_verify_message(
         .description(
             "Click ✅ to get access to the server.\n\nChat is locked here - reaction only.",
         )
-        .color(0x002E_CC71);
-    let msg = channel_id.send_message(&http, CreateMessage::new().embed(embed)).await?;
+        .image(crate::util::brand::Banner::Verify.url())
+        .color(crate::util::brand::ACCENT);
+    let msg = channel_id
+        .send_message(
+            &http,
+            CreateMessage::new()
+                .add_file(crate::util::brand::Banner::Verify.attachment())
+                .embed(embed),
+        )
+        .await?;
     msg.react(&http, '✅').await?;
     info!(channel = %channel_id, msg = %msg.id, "verify embed created on boot");
     Ok(())

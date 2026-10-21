@@ -10,8 +10,9 @@ pub async fn shutdown(ctx: Ctx<'_>) -> anyhow::Result<()> {
     let allowed = cfg.super_admin_id.is_some_and(|id| id == author);
     if !allowed {
         ctx.send(
-            CreateReply::default()
-                .embed(CreateEmbed::new().title("⛔ No permission").color(0x00ED_4245)),
+            CreateReply::default().embed(
+                CreateEmbed::new().title("⛔ No permission").color(crate::util::brand::DANGER),
+            ),
         )
         .await?;
         return Ok(());

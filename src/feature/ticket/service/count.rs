@@ -31,7 +31,7 @@ pub async fn reconcile_orphans(http: &Http, pool: &SqlitePool, guild_id: u64) ->
                     .await;
                 purged += 1;
                 warn!(channel=%cid_str, opener=%opener, "orphan ticket purged");
-                let _ = serenity::all::ChannelId::new(1509503717127356446).send_message(http, serenity::all::CreateMessage::new().embed(serenity::all::CreateEmbed::new().title("⚠️ Ticket Manually Deleted").description(format!("Ticket <#{cid_str}> (opener <@{opener}>) manually deleted — transcript unavailable.")).color(0x00ED_4245))).await;
+                let _ = serenity::all::ChannelId::new(1509503717127356446).send_message(http, serenity::all::CreateMessage::new().embed(serenity::all::CreateEmbed::new().title("⚠️ Ticket Manually Deleted").description(format!("Ticket <#{cid_str}> (opener <@{opener}>) manually deleted — transcript unavailable.")).color(crate::util::brand::DANGER))).await;
             }
         }
     }

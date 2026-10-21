@@ -49,6 +49,7 @@ pub fn topic_label(value: &str) -> Option<&'static str> {
 
 pub fn panel_embed() -> CreateEmbed {
     CreateEmbed::new()
+        .image(crate::util::brand::Banner::Ticket.url())
         .title("🎫 Support tickets")
         .description(
             "**Choose a topic below to open a private ticket.**\n\n\
@@ -56,7 +57,7 @@ pub fn panel_embed() -> CreateEmbed {
             • One open ticket per user.\n\
             • Abuse / spam → blacklist.",
         )
-        .color(0x0058_65F2)
+        .color(crate::util::brand::ACCENT)
         .footer(serenity::all::CreateEmbedFooter::new(
             "Loki Dev • Select topic → fill form → ticket created",
         ))
@@ -101,6 +102,7 @@ pub async fn ensure_ticket_panel(
         .send_message(
             http,
             serenity::all::CreateMessage::new()
+                .add_file(crate::util::brand::Banner::Ticket.attachment())
                 .embed(panel_embed())
                 .components(vec![panel_select_row()]),
         )

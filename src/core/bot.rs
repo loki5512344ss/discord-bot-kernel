@@ -149,6 +149,7 @@ impl EventHandler for Handler {
                     || c.data.custom_id == "ticket_topic"
                     || c.data.custom_id.starts_with("lang_")
                     || c.data.custom_id == "help:category"
+                    || c.data.custom_id == "help:home"
                 {
                     handle_component(ctx, c).await;
                 }
@@ -187,7 +188,7 @@ async fn handle_component(ctx: Context, interaction: ComponentInteraction) {
         }
     } else if id == "ticket_topic" {
         crate::feature::ticket::handler::on_select(ctx.clone(), interaction.clone()).await;
-    } else if id == "help:category" {
+    } else if id == "help:category" || id == "help:home" {
         crate::feature::help::handler::on_select(ctx.clone(), interaction.clone()).await;
     } else if id.starts_with("ticket_") {
         crate::feature::ticket::handler::on_button(ctx.clone(), interaction.clone()).await;

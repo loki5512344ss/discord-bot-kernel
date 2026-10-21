@@ -9,9 +9,14 @@ pub async fn ping(ctx: Ctx<'_>) -> anyhow::Result<()> {
     let start = Instant::now();
     ctx.defer().await?;
     let ms = start.elapsed().as_millis();
-    ctx.send(CreateReply::default().embed(
-        CreateEmbed::new().title("Pong!").description(format!("{ms} ms")).color(0x0057_F387),
-    ))
+    ctx.send(
+        CreateReply::default().embed(
+            CreateEmbed::new()
+                .title("Pong!")
+                .description(format!("{ms} ms"))
+                .color(crate::util::brand::OK),
+        ),
+    )
     .await?;
     Ok(())
 }
@@ -29,7 +34,7 @@ pub async fn serverinfo(ctx: Ctx<'_>) -> anyhow::Result<()> {
     let embed = CreateEmbed::new()
         .title(&guild.name)
         .description(format!("ID: `{}` · Members: {members} · Migrations: {count}", guild.id))
-        .color(0x0058_65F2);
+        .color(crate::util::brand::ACCENT);
     ctx.send(CreateReply::default().embed(embed)).await?;
     Ok(())
 }

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 280" width="1000" height="280">
+
+<defs>
+  <linearGradient id="face" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#ffb27a"/><stop offset="1" stop-color="#ff5d1f"/></linearGradient>
+  <mask id="cut"><rect width="48" height="48" fill="#fff"/><path d="M24 2V46" stroke="#000" stroke-width="3"/>
+    <path d="M16 22l8 4 8-4" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></mask>
+  <radialGradient id="fade" cx="82%" cy="50%" r="55%"><stop offset="0" stop-color="#fff"/><stop offset="0.6" stop-color="#fff" stop-opacity="0.35"/><stop offset="1" stop-color="#000"/></radialGradient>
+  <mask id="halo"><rect width="1000" height="280" fill="url(#fade)"/></mask>
+  <pattern id="dots" width="8" height="8" patternUnits="userSpaceOnUse"><rect x="1" y="1" width="4" height="4" fill="#ff6a2b"/><rect x="5" y="5" width="2" height="2" fill="#ff6a2b"/></pattern>
+</defs>
+<rect width="1000" height="280" fill="#100f0e"/>
+<rect width="1000" height="280" fill="url(#dots)" mask="url(#halo)" opacity="0.9"/>
+<g transform="translate(740 40) scale(4.4)"><path d="M24 4l18 20-18 20L6 24z" fill="url(#face)" mask="url(#cut)"/></g>
+<text x="60" y="92" font-family="'JetBrains Mono','DejaVu Sans Mono',monospace" font-size="20" letter-spacing="3" fill="#ff793f">LOKI DEV / HELP</text>
+<text x="56" y="176" font-family="Inter,'Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="84" letter-spacing="-4" fill="#f2ede5">COMMANDS</text>
+<text x="60" y="226" font-family="'JetBrains Mono','DejaVu Sans Mono',monospace" font-size="22" fill="#b8afa5">everything the bot can do</text>
+<rect x="60" y="246" width="120" height="4" fill="#ff793f"/>
+</svg>

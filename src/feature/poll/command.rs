@@ -32,7 +32,7 @@ pub async fn poll(
     let embed = CreateEmbed::new()
         .title(question)
         .description(description)
-        .color(0x0058_65F2)
+        .color(crate::util::brand::ACCENT)
         .footer(CreateEmbedFooter::new(format!("Poll by {}", ctx.author().name)));
     let reply = ctx.send(CreateReply::default().embed(embed)).await?;
     let msg = reply.message().await?;

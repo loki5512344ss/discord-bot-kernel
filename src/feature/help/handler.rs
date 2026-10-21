@@ -1,10 +1,11 @@
 //! Help select handler - edits help message when user picks category.
 
 use super::categories;
+use crate::util::brand;
 use serenity::all::{
-    ComponentInteraction, ComponentInteractionDataKind, Context, CreateActionRow, CreateEmbed,
-    CreateEmbedFooter, CreateInteractionResponse, CreateSelectMenu, CreateSelectMenuKind,
-    CreateSelectMenuOption,
+    ButtonStyle, ComponentInteraction, ComponentInteractionDataKind, Context, CreateActionRow,
+    CreateButton, CreateEmbed, CreateEmbedAuthor, CreateEmbedFooter, CreateInteractionResponse,
+    CreateSelectMenu, CreateSelectMenuKind, CreateSelectMenuOption,
 };
 
 /// Builds the category selector row - reused in main page and category pages.
@@ -51,27 +52,25 @@ fn category_commands(cat: &str) -> Vec<(&'static str, &'static str, &'static str
 fn build_category_embed(cat: &str, requester: &str) -> CreateEmbed {
     let c = categories::get(cat).unwrap_or(categories::Cat {
         emoji: "📌",
-        color: serenity::all::Colour::from_rgb(88, 101, 242),
+        color: serenity::all::Colour::new(brand::ACCENT),
         desc: "",
     });
     let cmds = category_commands(cat);
-    let mut desc = format!("**{} {}** — {}\n\n", c.emoji, cat, c.desc);
+    let mut desc = format!("{}\n\n", c.desc);
     if cmds.is_empty() {
         desc.push_str("_No commands in this category_");
     } else {
-        for (name, usage, d) in &cmds {
-            desc.push_str(&format!("`{}` — {}\n", usage, d));
-            // add alias for search
-            let _ = name;
+        for (_, usage, d) in &cmds {
+            desc.push_str(&format!("**`{usage}`**\n-# {d}\n\n"));
         }
     }
-    desc.push_str("\n*Use the selector below to switch categories.*");
     CreateEmbed::new()
+        .author(CreateEmbedAuthor::new(format!("LOKI DEV · {}", cat.to_uppercase())))
         .title(format!("{} {}", c.emoji, cat))
         .description(desc)
         .color(c.color)
         .footer(CreateEmbedFooter::new(format!(
-            "Requested by {requester} • {} commands",
+            "{} commands · requested by {requester}",
             cmds.len()
         )))
 }
@@ -82,39 +81,61 @@ fn build_main_embed(
     total: usize,
     guild_icon: Option<String>,
 ) -> CreateEmbed {
-    let mut cat_text = String::new();
+    let mut e = CreateEmbed::new()
+        .author(CreateEmbedAuthor::new("LOKI DEV · COMMAND CENTER"))
+        .title("What can I do for you?")
+        .description(format!(
+            "**{total}** commands in **{}** categories. Pick one in the menu below.\n\
+            -# Slash commands and the `{prefix}` prefix both work. `/help <command>` shows details.",
+            categories::all().len()
+        ))
+        .image(brand::Banner::Help.url())
+        .color(brand::ACCENT)
+        .footer(CreateEmbedFooter::new(format!("Requested by {requester}")));
     for (name, cat) in categories::all() {
         let count = category_commands(name).len();
-        cat_text.push_str(&format!("{} **{}** — {} ({} cmds)\n", cat.emoji, name, cat.desc, count));
+        e = e.field(
+            format!("{} {}", cat.emoji, name),
+            format!("{}\n-# {count} commands", cat.desc),
+            true,
+        );
     }
-    let mut e = CreateEmbed::new()
-        .title("📚 Loki Bot — Help")
-        .description(format!(
-            "Hi! Slash + prefix `{}` bot. **{}** commands total.\n\n**📂 Categories:**\n{}\nUse the selector below to view commands.",
-            prefix, total, cat_text
-        ))
-        .color(0x0058_65F2)
-        .footer(CreateEmbedFooter::new(format!("Requested by {requester} • /help <command> for details")));
-    if let Some(url) = guild_icon {
+    if let Some(url) = guild_icon.filter(|u| !u.is_empty()) {
         e = e.thumbnail(url);
     }
     e
 }
 
+/// Action rows for the help message: category selector + overview/website buttons.
+pub fn components() -> Vec<CreateActionRow> {
+    vec![
+        selector_row(),
+        CreateActionRow::Buttons(vec![
+            CreateButton::new("help:home")
+                .label("Overview")
+                .emoji('🏠')
+                .style(ButtonStyle::Secondary),
+            CreateButton::new_link("https://loki-code.dev").label("Website"),
+        ]),
+    ]
+}
+
 /// Handles `help:category` select. Edits the original help message.
 pub async fn on_select(ctx: Context, interaction: ComponentInteraction) {
-    if interaction.data.custom_id != "help:category" {
-        return;
-    }
-    let value = match &interaction.data.kind {
-        ComponentInteractionDataKind::StringSelect { values } => {
-            values.first().cloned().unwrap_or_default()
+    let embed = match interaction.data.custom_id.as_str() {
+        "help:home" => main_embed("!", &interaction.user.name, None),
+        "help:category" => {
+            let value = match &interaction.data.kind {
+                ComponentInteractionDataKind::StringSelect { values } => {
+                    values.first().cloned().unwrap_or_default()
+                }
+                _ => return,
+            };
+            let Some(cat) = value.strip_prefix("category:") else { return };
+            build_category_embed(cat, &interaction.user.name)
         }
         _ => return,
     };
-    let Some(cat) = value.strip_prefix("category:") else { return };
-    let embed = build_category_embed(cat, &interaction.user.name);
-    let row = selector_row();
     // Edit original message via UpdateMessage response
     let _ = interaction
         .create_response(
@@ -122,7 +143,7 @@ pub async fn on_select(ctx: Context, interaction: ComponentInteraction) {
             CreateInteractionResponse::UpdateMessage(
                 serenity::all::CreateInteractionResponseMessage::new()
                     .embed(embed)
-                    .components(vec![row]),
+                    .components(components()),
             ),
         )
         .await;

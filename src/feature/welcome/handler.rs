@@ -15,7 +15,8 @@ pub async fn on_member_join(ctx: Context, member: Member) {
     let embed = CreateEmbed::new()
         .title("Welcome! 👋")
         .description(greeting)
-        .color(0x5865F2)
+        .color(crate::util::brand::ACCENT)
+        .image(crate::util::brand::Banner::Welcome.url())
         .thumbnail(member.user.avatar_url().unwrap_or_default())
         .footer(serenity::all::CreateEmbedFooter::new(
             "Loki Dev • Verify in #verify • Pick language in #roles",
@@ -23,7 +24,10 @@ pub async fn on_member_join(ctx: Context, member: Member) {
     let res = WELCOME_CHANNEL
         .send_message(
             &ctx.http,
-            CreateMessage::new().embed(embed).content(format!("<@{}>", member.user.id)),
+            CreateMessage::new()
+                .add_file(crate::util::brand::Banner::Welcome.attachment())
+                .embed(embed)
+                .content(format!("<@{}>", member.user.id)),
         )
         .await;
     match res {

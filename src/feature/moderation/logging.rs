@@ -8,7 +8,7 @@ pub async fn on_member_join(ctx: &Context, member: &Member) {
     let embed = CreateEmbed::new()
         .title("Member joined")
         .description(format!("<@{}> `{}`", member.user.id, member.user.name))
-        .color(0x0057_F387)
+        .color(crate::util::brand::OK)
         .thumbnail(member.user.avatar_url().unwrap_or_default());
     let _ = MOD_LOGS.send_message(&ctx.http, CreateMessage::new().embed(embed)).await;
 }
@@ -21,7 +21,7 @@ pub async fn on_member_leave(
     let embed = CreateEmbed::new()
         .title("Member left")
         .description(format!("<@{}> `{}` guild={:?}", user.id, user.name, guild_id))
-        .color(0x00ED_4245);
+        .color(crate::util::brand::DANGER);
     let _ = MOD_LOGS.send_message(&ctx.http, CreateMessage::new().embed(embed)).await;
 }
 
@@ -56,7 +56,7 @@ pub async fn on_message_edit(ctx: &Context, event: &MessageUpdateEvent) {
     let embed = CreateEmbed::new()
         .title("Message edited")
         .description(format!("<#{}> by <@{}>\n{}", event.channel_id, author.id, body))
-        .color(0x00FAA81A);
+        .color(crate::util::brand::WARN);
     let _ = MOD_LOGS.send_message(&ctx.http, CreateMessage::new().embed(embed)).await;
 }
 
@@ -74,7 +74,7 @@ pub async fn on_message_delete(
             message_id.get(),
             guild_id
         ))
-        .color(0x0057_F387);
+        .color(crate::util::brand::OK);
     let _ = MOD_LOGS.send_message(&ctx.http, CreateMessage::new().embed(embed)).await;
 }
 
@@ -86,6 +86,6 @@ pub async fn on_message_delete_bulk(
     let embed = CreateEmbed::new()
         .title("Messages purged")
         .description(format!("<#{}> {} messages bulk deleted", channel_id, ids.len()))
-        .color(0x00ED_4245);
+        .color(crate::util::brand::DANGER);
     let _ = MOD_LOGS.send_message(&ctx.http, CreateMessage::new().embed(embed)).await;
 }

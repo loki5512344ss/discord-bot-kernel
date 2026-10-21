@@ -16,7 +16,7 @@ pub async fn help(
                     CreateEmbed::new()
                         .title(format!("📖 /{} ", cmd.name))
                         .description(desc)
-                        .color(0x0058_65F2)
+                        .color(crate::util::brand::ACCENT)
                         .footer(CreateEmbedFooter::new(format!(
                             "Requested by {}",
                             ctx.author().name
@@ -34,7 +34,12 @@ pub async fn help(
         .guild_id()
         .and_then(|_| ctx.cache().guild(ctx.guild_id()?).map(|g| g.icon_url().unwrap_or_default()));
     let embed = crate::feature::help::handler::main_embed(&prefix, &ctx.author().name, guild_icon);
-    let row = crate::feature::help::handler::selector_row();
-    ctx.send(CreateReply::default().embed(embed).components(vec![row])).await?;
+    ctx.send(
+        CreateReply::default()
+            .attachment(crate::util::brand::Banner::Help.attachment())
+            .embed(embed)
+            .components(crate::feature::help::handler::components()),
+    )
+    .await?;
     Ok(())
 }

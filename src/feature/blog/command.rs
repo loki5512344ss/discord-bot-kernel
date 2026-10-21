@@ -44,14 +44,14 @@ pub async fn blog_post(
             let embed = CreateEmbed::new()
                 .title("✅ Blog posted")
                 .description(format!("Slug: `{}`\nID: `{}`", resp.slug, resp.id))
-                .color(0x0057_F387);
+                .color(crate::util::brand::OK);
             ctx.send(CreateReply::default().embed(embed)).await?;
         }
         Err(e) => {
             let embed = CreateEmbed::new()
                 .title("❌ Blog post failed")
                 .description(format!("{e}"))
-                .color(0x00ED_4245);
+                .color(crate::util::brand::DANGER);
             ctx.send(CreateReply::default().embed(embed).ephemeral(true)).await?;
         }
     }

@@ -48,7 +48,7 @@ pub async fn clear(ctx: Ctx<'_>, #[description = "Amount 1-100"] amount: u8) -> 
     };
     ctx.send(
         CreateReply::default()
-            .embed(CreateEmbed::new().description(desc).color(0x0057_F387))
+            .embed(CreateEmbed::new().description(desc).color(crate::util::brand::OK))
             .ephemeral(true),
     )
     .await?;
@@ -84,8 +84,9 @@ pub async fn slowmode(
         }
     };
     ctx.send(
-        CreateReply::default()
-            .embed(CreateEmbed::new().description(desc.to_string()).color(0x0058_65F2)),
+        CreateReply::default().embed(
+            CreateEmbed::new().description(desc.to_string()).color(crate::util::brand::ACCENT),
+        ),
     )
     .await?;
     Ok(())
@@ -117,7 +118,7 @@ pub async fn warn(
     let embed = CreateEmbed::new()
         .title(format!("Warned {}", user.name))
         .description(reason)
-        .color(0x00ED_4245)
+        .color(crate::util::brand::DANGER)
         .footer(CreateEmbedFooter::new(format!("By {}", ctx.author().name)));
     ctx.send(CreateReply::default().embed(embed)).await?;
     Ok(())
@@ -157,7 +158,7 @@ pub async fn purge(
     };
     ctx.send(
         CreateReply::default()
-            .embed(CreateEmbed::new().description(desc).color(0x0057_F387))
+            .embed(CreateEmbed::new().description(desc).color(crate::util::brand::OK))
             .ephemeral(true),
     )
     .await?;

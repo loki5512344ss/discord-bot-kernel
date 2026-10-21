@@ -15,14 +15,14 @@ pub fn all() -> Vec<(&'static str, Cat)> {
         (
             "Information",
             Cat {
-                emoji: "ℹ️", color: Colour::from_rgb(52, 152, 219), desc: "Server & bot info"
+                emoji: "ℹ️", color: Colour::from_rgb(255, 178, 122), desc: "Server & bot info"
             },
         ),
         (
             "Moderation",
             Cat {
                 emoji: "🛡️",
-                color: Colour::from_rgb(231, 76, 60),
+                color: Colour::from_rgb(255, 90, 54),
                 desc: "Mod tools (requires perms)",
             },
         ),
@@ -30,7 +30,7 @@ pub fn all() -> Vec<(&'static str, Cat)> {
             "Tickets",
             Cat {
                 emoji: "🎫",
-                color: Colour::from_rgb(88, 101, 242),
+                color: Colour::from_rgb(255, 121, 63),
                 desc: "Support tickets & blacklist",
             },
         ),
@@ -38,7 +38,7 @@ pub fn all() -> Vec<(&'static str, Cat)> {
             "Utility",
             Cat {
                 emoji: "🔧",
-                color: Colour::from_rgb(46, 204, 113),
+                color: Colour::from_rgb(255, 204, 56),
                 desc: "Polls, reminders, blog",
             },
         ),

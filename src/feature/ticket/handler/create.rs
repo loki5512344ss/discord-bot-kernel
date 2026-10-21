@@ -28,7 +28,7 @@ pub async fn create_ticket_channel(
                         "Hello <@{}> — staff will be with you shortly.\n\n**Topic:** {label} (`{topic}`)\n**Description:**\n{description}",
                         user.id
                     ))
-                    .color(0x0058_65F2)
+                    .color(crate::util::brand::ACCENT)
                     .footer(serenity::all::CreateEmbedFooter::new(format!("Opened by {} • {}", user.name, topic)));
                 let post_name = subject.chars().take(90).collect::<String>();
                 let post_name = if post_name.trim().len() < 2 {
@@ -78,7 +78,7 @@ pub async fn create_ticket_channel(
                             .send_message(
                                 &ctx.http,
                                 CreateMessage::new().embed(
-                                    CreateEmbed::new().title("Ticket opened (forum)").description(format!("<@{}> opened forum post <#{}> — **{label}**\nSubject: {subject}", user.id, thread_id)).color(0x0058_65F2),
+                                    CreateEmbed::new().title("Ticket opened (forum)").description(format!("<@{}> opened forum post <#{}> — **{label}**\nSubject: {subject}", user.id, thread_id)).color(crate::util::brand::ACCENT),
                                 ),
                             )
                             .await;
@@ -110,7 +110,7 @@ pub async fn create_ticket_channel(
     let embed = CreateEmbed::new()
         .title(subject)
         .description(format!("Hello <@{}> — staff will be with you shortly.\n\n**Topic:** {label} (`{topic}`)\n**Description:**\n{description}", user.id))
-        .color(0x0058_65F2)
+        .color(crate::util::brand::ACCENT)
         .footer(serenity::all::CreateEmbedFooter::new(format!("Opened by {} • {}", user.name, topic)));
     let row = serenity::all::CreateActionRow::Buttons(vec![
         serenity::all::CreateButton::new("ticket_claim")
@@ -135,7 +135,7 @@ pub async fn create_ticket_channel(
                         "<@{}> opened <#{}> — **{label}**\nSubject: {subject}",
                         user.id, channel.id
                     ))
-                    .color(0x0058_65F2),
+                    .color(crate::util::brand::ACCENT),
             ),
         )
         .await;

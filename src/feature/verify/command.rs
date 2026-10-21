@@ -17,8 +17,16 @@ pub async fn verify_setup(ctx: Ctx<'_>) -> anyhow::Result<()> {
     let embed = CreateEmbed::new()
         .title(i18n::t("verify.title", lang))
         .description(i18n::t("verify.desc", lang))
-        .color(0x002E_CC71);
-    let msg = channel.send_message(ctx.http(), CreateMessage::new().embed(embed)).await?;
+        .image(crate::util::brand::Banner::Verify.url())
+        .color(crate::util::brand::ACCENT);
+    let msg = channel
+        .send_message(
+            ctx.http(),
+            CreateMessage::new()
+                .add_file(crate::util::brand::Banner::Verify.attachment())
+                .embed(embed),
+        )
+        .await?;
     msg.react(ctx.http(), '✅').await?;
     ctx.send(CreateReply::default().content("Verification message posted.").ephemeral(true))
         .await?;
